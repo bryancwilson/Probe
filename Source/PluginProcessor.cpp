@@ -189,11 +189,11 @@ void ChainBuilderAudioProcessor::pushNextSampleIntoFifo(float sample) noexcept
         window.multiplyWithWindowingTable(fftData, fftSize);        // Window the signal first
         forwardFFT.performRealOnlyForwardTransform(fftData, fftData);   // Perform forward FFT including phase
 
-        auto spectral_centroid = Metrics::computeSpectralCentroid(fftData, getSampleRate());
-        auto spectral_rolloff = Metrics::computeSpectralRolloff(fftData, getSampleRate(), 0.95f);
-        auto spectral_flatness = Metrics::computeSpectralFlatness(fftData);
-        auto resonance_score = Metrics::computeResonanceScore(fftData, getSampleRate());
-        auto harmonic_to_noise = Metrics::computeHarmonicToNoiseRatio(fftData, getSampleRate());
+        spectral_centroid = Metrics::computeSpectralCentroid(fftData, getSampleRate());
+        spectral_rolloff = Metrics::computeSpectralRolloff(fftData, getSampleRate(), 0.95f);
+        spectral_flatness = Metrics::computeSpectralFlatness(fftData);
+        resonance_score = Metrics::computeResonanceScore(fftData, getSampleRate());
+        harmonic_to_noise = Metrics::computeHarmonicToNoiseRatio(fftData, getSampleRate());
 
         //DBG("Spectral Centroid: " << juce::String(spectral_centroid)
         //<< " Spectral Rollof: " << juce::String(spectral_rolloff)

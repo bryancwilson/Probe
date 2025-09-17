@@ -71,6 +71,13 @@ public:
     juce::dsp::FFT forwardFFT; // instantiating (FFT) class to perform the forward FFT on
     juce::dsp::WindowingFunction<float> window; // instantiating (window) class to apply windowing function on
     void pushNextSampleIntoFifo(float sample) noexcept;
+    
+    /* Metric Variables */
+    float spectral_centroid;
+    float spectral_rolloff;
+    float spectral_flatness;
+    float resonance_score;
+    float harmonic_to_noise;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChainBuilderAudioProcessor)

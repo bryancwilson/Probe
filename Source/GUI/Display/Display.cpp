@@ -201,9 +201,25 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
     }
 
     juce::FileSearchPath searchPaths;
-    searchPaths.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
-    searchPaths.add(juce::File("C:\\Program Files\\Steinberg\\VST3"));
 
+    #if JUCE_WINDOWS
+        searchPaths.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
+        searchPaths.add(juce::File("C:\\Program Files\\Steinberg\\VST3"));
+
+    #elif JUCE_MAC
+        // Typical system-wide VST3 location on macOS
+        searchPaths.add(juce::File("/Library/Audio/Plug-Ins/VST3"));
+        // User-specific location (optional)
+        searchPaths.add(juce::File("~/Library/Audio/Plug-Ins/VST3"));
+
+    #elif JUCE_LINUX
+        // Common Linux locations
+        searchPaths.add(juce::File("/usr/lib/vst3"));
+        searchPaths.add(juce::File("/usr/local/lib/vst3"));
+        // Add more if your distro uses different paths
+    #endif
+
+    
     // Path to store scan state
     juce::File deadMansPedal = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
         .getChildFile("pluginScanState.tmp");
@@ -246,7 +262,7 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
                     errorMessage
                 );
 
-                if (instance == false)
+                if (instance == nullptr)
                 {
                     DBG("Failed to load plugin: " << errorMessage);
                 }
