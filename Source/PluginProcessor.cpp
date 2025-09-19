@@ -142,32 +142,40 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // -------------------------
-    // Process your "probe" plugin
-    // -------------------------
-
+    bool useWhiteNoiseForFifo = true;
     // ======================= White Noise Test ==========================
-    buffer.clear();
-    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+    if (useWhiteNoiseForFifo)
     {
-        auto* writePointer = buffer.getWritePointer(channel);
-        for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+        // 1. Generate signal (noise or DAW input)
+        for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
         {
-            // Random float between -1.0 and +1.0
-            writePointer[sample] = juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f; // Fill with white noise
+            auto* writePointer = buffer.getWritePointer(channel);
+            for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+            {
+                float noise = juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
+                writePointer[sample] = noise; // overwrite instead of add for clean test
+            }
+        }  
+
+        // 2. Pass through hosted EQ
+        if (hostedPlugin != nullptr)
+        {
+            hostedPlugin->processBlock(buffer, midiMessages);
         }
-    }
 
-    if (hostedPlugin != nullptr)
-    {
-        hostedPlugin->processBlock(buffer, midiMessages);
-    }
+        // 3. Analyze *post-EQ* signal (first channel is fine for FFT)
+        if (buffer.getNumChannels() > 0)
+        {
+            auto* channelData = buffer.getReadPointer(0);
+            for (int i = 0; i < buffer.getNumSamples(); ++i)
+            {
+                pushNextSampleIntoFifo(channelData[i]);
+            }
+        }
 
-    // -------------------------
-    // Optional: Your own plugin processing
-    // -------------------------
+    }
     // Live From DAW
-    if (buffer.getNumChannels() > 0)
+    else if (buffer.getNumChannels() > 0)
     {
         auto* channelData = buffer.getReadPointer(0); // pointer to first channel
         for (int i = 0; i < buffer.getNumSamples(); ++i)
@@ -175,6 +183,8 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             pushNextSampleIntoFifo(channelData[i]);
         }
     }
+
+
 
 }
 
@@ -195,11 +205,11 @@ void ChainBuilderAudioProcessor::pushNextSampleIntoFifo(float sample) noexcept
         resonance_score = Metrics::computeResonanceScore(fftData, getSampleRate());
         harmonic_to_noise = Metrics::computeHarmonicToNoiseRatio(fftData, getSampleRate());
 
-        //DBG("Spectral Centroid: " << juce::String(spectral_centroid)
-        //<< " Spectral Rollof: " << juce::String(spectral_rolloff)
-        //<< " Spectral Flatness: " << juce::String(spectral_flatness)
-        //<< " Resonance Score: " << juce::String(resonance_score)
-        //<< " Harmonic to Noise Ratio: " << juce::String(harmonic_to_noise));
+        DBG("Spectral Centroid: " << juce::String(spectral_centroid)
+        << " Spectral Rollof: " << juce::String(spectral_rolloff)
+        << " Spectral Flatness: " << juce::String(spectral_flatness)
+        << " Resonance Score: " << juce::String(resonance_score)
+        << " Harmonic to Noise Ratio: " << juce::String(harmonic_to_noise));
         fifoIndex = 0;                              // reset FIFO index
     }
 

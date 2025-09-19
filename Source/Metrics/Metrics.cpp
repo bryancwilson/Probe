@@ -50,21 +50,28 @@ namespace Metrics
 
     float computeSpectralFlatness(float* fftData)
     {
-
-        float geoMean = 1.0f, arithMean = 0.0f;
+        double logSum = 0.0;
         int N = fftSize / 2;
 
         for (int k = 0; k < N; ++k)
         {
+            float mag = std::abs(fftData[k]) + 1e-12f; // avoid log(0)
+            logSum += std::log(mag);
+        }
+
+        double geoMean = std::exp(logSum / N);
+
+        double arithMean = 0.0;
+        for (int k = 0; k < N; ++k)
+        {
             float mag = std::abs(fftData[k]) + 1e-12f;
-            geoMean *= mag;
             arithMean += mag;
         }
-        geoMean = std::pow(geoMean, 1.0f / N);
         arithMean /= N;
 
-        return arithMean > 0.0f ? geoMean / arithMean : 0.0f;
+        return arithMean > 0.0 ? static_cast<float>(geoMean / arithMean) : 0.0f;
     }
+
 
     std::array<float, 3> computeBandEnergy(float* fftData, double sampleRate)
     {

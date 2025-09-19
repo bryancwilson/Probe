@@ -32,22 +32,42 @@ void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
     // Draw “Hello” in white, centred horizontally, 20 px down from the top
     g.setColour (juce::Colours::white);
     g.setFont   (20.0f);
-    
-    juce::String metrics_display =
-        "Spectral Centroid: " + juce::String (audioProcessor.spectral_centroid, 2) + "\n"
-        "Spectral Rolloff: "  + juce::String (audioProcessor.spectral_rolloff, 2)  + "\n"
-        "Spectral Flatness: " + juce::String (audioProcessor.spectral_flatness, 2) + "\n"
-        "Resonance Score: "   + juce::String (audioProcessor.resonance_score, 2)   + "\n"
-        "Harmonic-to-Noise: " + juce::String (audioProcessor.harmonic_to_noise, 2);
-    
-    g.drawText (metrics_display,
-                0, 0, getWidth(), 400,               // x, y, width, height of the text area
-                juce::Justification::centred,       // centre the text
-                true);                              // use ellipses if it doesn’t fit
+   
+    // Display Metrics
+    display_metrics();
 
     // Position and show your drop zone
     dropZone->setBounds (0, 40, getWidth() * 0.2f, getHeight() - 80);
     addAndMakeVisible (dropZone);
+}
+
+void ChainBuilderAudioProcessorEditor::display_metrics()
+{
+    juce::String metrics_display =
+        "Spectral Centroid: " + juce::String(audioProcessor.spectral_centroid, 2) + "\n"
+        "Spectral Rolloff: " + juce::String(audioProcessor.spectral_rolloff, 2) + "\n"
+        "Spectral Flatness: " + juce::String(audioProcessor.spectral_flatness, 2) + "\n"
+        "Resonance Score: " + juce::String(audioProcessor.resonance_score, 2) + "\n"
+        "Harmonic-to-Noise: " + juce::String(audioProcessor.harmonic_to_noise, 2);
+
+    auto area = getLocalBounds();
+
+    // Let's say you want metrics_text to take half the width and 1/5 of the height
+    auto metricsWidth = area.getWidth() / 2;
+    auto metricsHeight = area.getHeight() / 5;
+
+    metrics_text.setText(metrics_display, juce::dontSendNotification);
+    std::string font = "Arial";
+    metrics_text.setFont(juce::Font(font, 15.0f, 0));
+    metrics_text.setColour(juce::Label::textColourId, juce::Colours::white);
+    metrics_text.setJustificationType(juce::Justification::centred);
+    metrics_text.setBounds(
+        (area.getWidth() - metricsWidth) / 2,  // X: center
+        (area.getHeight() - metricsHeight) / 2,  // Y: center
+        metricsWidth,
+        metricsHeight
+    );
+    addAndMakeVisible(metrics_text);
 }
 
 void ChainBuilderAudioProcessorEditor::resized()

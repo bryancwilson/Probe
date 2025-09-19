@@ -27,6 +27,8 @@ public:
 
     // Display Functions
     void initWindowSize_Editor();
+    void display_metrics();
+    juce::Label metrics_text;
     PluginDropZone* dropZone;
 
 
