@@ -3,19 +3,6 @@
 #include "Display.h"
 #include "../../Metrics/Metrics.h"
 
-
-// JUCE_WINDOWS true
-
-//juce::FileSearchPath searchPaths;
-// #if JUCE_WINDOWS
-//searchPaths.add("C:\\Program Files\\VST3");
-//searchPaths.add("C:\\Program Files\\Steinberg\\VST3");
-//#elif JUCE_MAC
-//searchPaths.add("/Library/Audio/Plug-Ins/VST3");
-//searchPaths.add("~/Library/Audio/Plug-Ins/VST3");
-//#endif
-
-
 void ChainBuilderAudioProcessorEditor::initWindowSize_Editor()
 {
     // Grab the window instance and create a rectangle
@@ -47,7 +34,104 @@ void ChainBuilderAudioProcessorEditor::initWindowSize_Editor()
     setSize(width * 1.5, height * 1.5);
 }
 
+// FUNCTIONS
+void ChainBuilderAudioProcessorEditor::showText()
+{
+
+    main_text.setText(b_text, juce::dontSendNotification);
+
+    // Set the font for the label
+    std::string font = "Arial";
+    main_text.setFont(juce::Font(font, 15.0f, 0));
+
+    // Set the label's text color
+    main_text.setColour(juce::Label::textColourId, juce::Colours::white);
+
+    // Set label justification
+    main_text.setJustificationType(juce::Justification::centred);
+
+    // Set the bounds of the label (position and size)
+    main_text.setBounds(text_box_bounds.getX(), text_box_bounds.getY(), text_box_bounds.getWidth(), text_box_bounds.getHeight() / 1.5);
+
+    // Add the label to the editor
+    addAndMakeVisible(main_text);
+}
+
+void ChainBuilderAudioProcessorEditor::display_metrics()
+{
+    juce::String metrics_display =
+        "Spectral Centroid: " + juce::String(audioProcessor.spectral_centroid, 2) + "\n"
+        "Spectral Rolloff: " + juce::String(audioProcessor.spectral_rolloff, 2) + "\n"
+        "Spectral Flatness: " + juce::String(audioProcessor.spectral_flatness, 2) + "\n"
+        "Resonance Score: " + juce::String(audioProcessor.resonance_score, 2) + "\n"
+        "Harmonic-to-Noise: " + juce::String(audioProcessor.harmonic_to_noise, 2);
+
+    auto area = getLocalBounds();
+
+    // Let's say you want metrics_text to take half the width and 1/5 of the height
+    auto metricsWidth = area.getWidth() / 2;
+    auto metricsHeight = area.getHeight() / 5;
+
+    metrics_text.setText(metrics_display, juce::dontSendNotification);
+    std::string font = "Arial";
+    metrics_text.setFont(juce::Font(font, 15.0f, 0));
+    metrics_text.setColour(juce::Label::textColourId, juce::Colours::white);
+    metrics_text.setJustificationType(juce::Justification::centred);
+    metrics_text.setBounds(
+        (area.getWidth() - metricsWidth) / 2,  // X: center
+        (area.getHeight() - metricsHeight) / 2,  // Y: center
+        metricsWidth,
+        metricsHeight
+    );
+    addAndMakeVisible(metrics_text);
+}
+
 // CLASSES
+
+
+ParameterDisplay::ParameterDisplay(juce::AudioProcessorParameter* p)
+        : parameter(p)
+{
+    // Name label (smaller font)
+    nameLabel.setText(parameter->getName(100), juce::dontSendNotification);
+    nameLabel.setFont(juce::Font(12.0f, juce::Font::plain));
+    nameLabel.setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(nameLabel);
+
+    // Value label (bigger font)
+    valueLabel.setFont(juce::Font(18.0f, juce::Font::bold));
+    valueLabel.setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(valueLabel);
+
+    startTimerHz(10); // Update 10 times per second
+}
+
+void ParameterDisplay::resized()
+{
+    auto bounds = getLocalBounds();
+    nameLabel.setBounds(bounds.removeFromTop(bounds.getHeight() / 2));
+    valueLabel.setBounds(bounds);
+}
+
+void ParameterDisplay::timerCallback()
+{
+    if (parameter != nullptr)
+    {
+        float val = parameter->getValue(); // normalized
+        juce::String units;
+
+        // Example: append units if float parameter has range
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(parameter))
+        {
+            val = floatParam->get(); // actual value
+            units = floatParam->label; // e.g., "dB", "Hz"
+        }
+
+        valueLabel.setText(juce::String(val, 2) + " " + units, juce::dontSendNotification);
+    }
+}
+
+
 PluginDropZone::PluginDropZone(ChainBuilderAudioProcessor& proc)
     : audioProcessor(proc)
 {
@@ -198,6 +282,8 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
                 << ", Default: " << param->getDefaultValue()
                 << ", Label: " << param->getLabel());
         }
+
+        params_loaded = true;
     }
 
     juce::FileSearchPath searchPaths;

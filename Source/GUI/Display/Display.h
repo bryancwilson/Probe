@@ -29,6 +29,7 @@ public:
     ChainBuilderAudioProcessor& audioProcessor; // store reference to processor
     float dashPhase = 0.0f; // 0..1, updated every timer tick
 
+    bool params_loaded = false;
 private:
     void mouseDown(const juce::MouseEvent& event) override;
     bool isClickOnPlus(const juce::Point<int>& pos);
@@ -53,4 +54,29 @@ public:
 
     virtual void parameterValueChanged(int parameterIndex, float newValue) = 0;
     virtual void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) = 0;
+};
+
+class ParameterDisplay : public juce::Component,
+    private juce::Timer   // Timer for updating value
+{
+public:
+    // Constructor
+    ParameterDisplay(juce::AudioProcessorParameter* param);
+
+    // Destructor
+    ~ParameterDisplay() override = default;
+
+    // JUCE overrides
+    void resized() override;
+    void paint(juce::Graphics& g) override {}
+    void timerCallback() override;
+
+    juce::AudioProcessorParameter* parameter; // parameter to display
+
+    
+private:
+
+
+    juce::Label nameLabel;  // small font for name
+    juce::Label valueLabel; // larger font for value
 };
