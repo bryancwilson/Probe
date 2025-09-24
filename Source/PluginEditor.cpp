@@ -58,35 +58,44 @@ void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
             loaded_params = true;
         }
 
-        auto bounds = getLocalBounds().reduced(10) / JUCE_LIVE_CONSTANT(1.f); // overall margin inside component
+        auto bounds = getLocalBounds().toFloat();
 
-        int columns = 2;
+        // Example: scale only the x coordinates
+        float xScale = 0.35f;
+        float left = bounds.getX();
+        float width = bounds.getWidth() * xScale; // shrink width
+        float rightOffset = (bounds.getWidth() - width) / 3.303f; // optional center
+
+        bounds.setX(left + rightOffset);
+        bounds.setWidth(width);
+
+        int columns = 3;
         int rows = (parameterDisplays.size() + columns - 1) / columns;
 
-        // spacing / padding values
-        int topMargin = JUCE_LIVE_CONSTANT(50);  // space above first row
-        int rowSpacing = JUCE_LIVE_CONSTANT(4);  // vertical gap between rows
-        int colSpacing = JUCE_LIVE_CONSTANT(-30);  // horizontal gap between columns
+        // use fractions of width/height instead of fixed pixels
+        float topMargin = bounds.getHeight() * 0.10f;   // 5% of total height
+        float rowSpacing = bounds.getHeight() * 0.01f;   // 1% of total height
+        float colSpacing = bounds.getWidth() * -0.02f;  // -2% of total width (tighten columns)
 
-        // adjust available drawing area for the top margin
+        // shrink by top margin
         bounds.removeFromTop(topMargin);
 
-        // now compute sizes considering spacing
-        int colWidth = (bounds.getWidth() - (columns - 1) * colSpacing) / columns;
-        int rowHeight = (bounds.getHeight() - (rows - 1) * rowSpacing) / rows;
+        // compute sizes
+        float colWidth = (bounds.getWidth() - (columns - 1) * colSpacing) / columns;
+        float rowHeight = (bounds.getHeight() - (rows - 1) * rowSpacing) / rows;
 
-        for (int i = 0; i < 4; ++i)
+        // for (int i = 0; i < parameterDisplays.size(); ++i)
+        for (int i = 0; i < 6; ++i)
         {
             int row = i / columns;
             int col = i % columns;
 
-            int horizontalOffset = JUCE_LIVE_CONSTANT(-106); // positive = right, negative = left
-
-            int x = bounds.getX() + horizontalOffset + col * (colWidth + colSpacing);
-            int y = bounds.getY() + row * (rowHeight + rowSpacing);
+            float x = bounds.getX() + col * (colWidth + colSpacing);
+            float y = bounds.getY() + row * (rowHeight + rowSpacing);
 
             parameterDisplays[i]->setBounds(x, y, colWidth, rowHeight);
         }
+
 
     }
 }

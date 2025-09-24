@@ -14,6 +14,8 @@
 
 #include <string>
 #include <iostream>
+#include <curl/curl.h>
+#include <nlohmann/json.hpp>
 //==============================================================================
 /**
 */
@@ -75,6 +77,9 @@ public:
     uint32_t color_1 = 0xff443627;
     uint32_t color_2 = 0xffd98324;
     uint32_t color_4 = 0xfff2f6d0;
+
+    // In your component header
+    juce::Rectangle<int> paramBoxDebug;
 
 private:
     // This reference is provided as a quick way for your editor to

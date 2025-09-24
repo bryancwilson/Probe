@@ -3,8 +3,7 @@
 
 #include <string>
 #include <iostream>
-#include <curl/curl.h>
-#include <nlohmann/json.hpp>
+
 
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output);
 

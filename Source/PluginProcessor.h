@@ -78,6 +78,14 @@ public:
     float spectral_flatness;
     float resonance_score;
     float harmonic_to_noise;
+    float rms;
+    float lufs;
+    float peak;
+    float crest_factor;
+    float transient_sharpness;
+    float decay_time;
+    float stereo_correlation;
+    float modulation_depth;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChainBuilderAudioProcessor)
