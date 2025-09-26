@@ -55,6 +55,9 @@ void ChainBuilderAudioProcessorEditor::handleTextInput(int id)
         for example new gain of -2dB (-.2). Then below is a textual summary of overall what the producer should do and why.
 
         */
+        creative_text = textBox.getText().toStdString();
+        textBox.clear();
+        prompt_gen();
 
     }
 

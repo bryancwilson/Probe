@@ -3,6 +3,7 @@
 #include "Display.h"
 #include "../../Metrics/Metrics.h"
 
+// FUNCTIONS
 void ChainBuilderAudioProcessorEditor::initWindowSize_Editor()
 {
     // Grab the window instance and create a rectangle
@@ -34,7 +35,6 @@ void ChainBuilderAudioProcessorEditor::initWindowSize_Editor()
     setSize(width * 1.5, height * 1.5);
 }
 
-// FUNCTIONS
 void ChainBuilderAudioProcessorEditor::showText()
 {
 
@@ -56,6 +56,96 @@ void ChainBuilderAudioProcessorEditor::showText()
     // Add the label to the editor
     addAndMakeVisible(main_text);
 }
+
+void ChainBuilderAudioProcessorEditor::display_params()
+{
+    // =============== Display Parameters ===================
+    if (audioProcessor.hostedPlugin != nullptr && dropZone->params_loaded)
+    {
+        if (!loaded_params)
+        {
+            for (auto* param : dropZone->parameters)
+            {
+                auto* display = new ParameterDisplay(param);
+                parameterDisplays.add(display);
+                addAndMakeVisible(display);
+            }
+            loaded_params = true;
+        }
+
+        auto bounds = getLocalBounds().toFloat();
+
+        // Example: scale only the x coordinates
+        float xScale = 0.35f;
+        float left = bounds.getX();
+        float width = bounds.getWidth() * xScale; // shrink width
+        float rightOffset = (bounds.getWidth() - width) / 3.303f; // optional center
+
+        bounds.setX(left + rightOffset);
+        bounds.setWidth(width);
+
+        int columns = 3;
+        int rows = (parameterDisplays.size() + columns - 1) / columns;
+
+        // use fractions of width/height instead of fixed pixels
+        float topMargin = bounds.getHeight() * 0.10f;   // 5% of total height
+        float rowSpacing = bounds.getHeight() * 0.01f;   // 1% of total height
+        float colSpacing = bounds.getWidth() * -0.02f;  // -2% of total width (tighten columns)
+
+        // shrink by top margin
+        bounds.removeFromTop(topMargin);
+
+        // compute sizes
+        float colWidth = (bounds.getWidth() - (columns - 1) * colSpacing) / columns;
+        float rowHeight = (bounds.getHeight() - (rows - 1) * rowSpacing) / rows;
+
+        // for (int i = 0; i < parameterDisplays.size(); ++i)
+        int numToShow = std::min<int>(6, parameterDisplays.size());
+        for (int i = 0; i < numToShow; ++i)
+        {
+            int row = i / columns;
+            int col = i % columns;
+
+            float x = bounds.getX() + col * (colWidth + colSpacing);
+            float y = bounds.getY() + row * (rowHeight + rowSpacing);
+
+            parameterDisplays[i]->setBounds(x, y, colWidth, rowHeight);
+        }
+
+
+    }
+}
+
+void ChainBuilderAudioProcessorEditor::testParameterDisplayOffsets()
+{
+    DBG("=== Testing ParameterDisplay Offsets ===");
+
+    // Assign test target values (simulate ChatGPT midpoints)
+    for (int i = 0; i < parameterDisplays.size(); ++i)
+    {
+        auto* display = parameterDisplays[i];
+
+        // Example: set target to 0.5 for float params
+        display->setTargetValue(0.5f);
+
+        // Log current value and offset
+        float currentValue = 0.0f;
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(display->getParameter()))
+        {
+            currentValue = floatParam->get();
+        }
+
+        float offset = currentValue - 0.5f; // target = 0.5
+
+        DBG("Parameter " << display->getParameter()->getName(100)
+            << " | Current: " << currentValue
+            << " | Target: 0.5"
+            << " | Offset: " << offset);
+    }
+
+    DBG("=== End Test ===");
+}
+
 
 void ChainBuilderAudioProcessorEditor::display_metrics()
 {
@@ -83,14 +173,12 @@ void ChainBuilderAudioProcessorEditor::display_metrics()
         metricsWidth,
         metricsHeight
     );
-    addAndMakeVisible(metrics_text);
+    // addAndMakeVisible(metrics_text);
 }
 
 // CLASSES
-
-
 ParameterDisplay::ParameterDisplay(juce::AudioProcessorParameter* p)
-        : parameter(p)
+    : parameter(p)
 {
     // Name label (smaller font)
     nameLabel.setText(parameter->getName(100), juce::dontSendNotification);
@@ -103,33 +191,73 @@ ParameterDisplay::ParameterDisplay(juce::AudioProcessorParameter* p)
     valueLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(valueLabel);
 
+    // Offset label (tiny number, different colour)
+    offsetLabel.setFont(juce::Font(11.0f, juce::Font::italic));
+    offsetLabel.setColour(juce::Label::textColourId, juce::Colours::orange);
+    offsetLabel.setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(offsetLabel);
+
     startTimerHz(10); // Update 10 times per second
 }
 
 void ParameterDisplay::resized()
 {
     auto bounds = getLocalBounds();
-    nameLabel.setBounds(bounds.removeFromTop(bounds.getHeight() / 2));
-    valueLabel.setBounds(bounds);
+
+    // Top: name label (smaller font)
+    auto nameArea = bounds.removeFromTop(bounds.getHeight() * 0.25f);
+    nameLabel.setBounds(nameArea);
+
+    // Bottom: value + offset
+    // Give value most of the space, offset just enough to show the number
+    float valueFraction = 0.60f; // 85% for main value
+    auto valueArea = bounds.removeFromLeft(bounds.getWidth() * valueFraction);
+    valueLabel.setBounds(valueArea);
+
+    auto offsetArea = bounds; // remaining 15% for offset
+    offsetLabel.setBounds(offsetArea);
 }
+
+
+
 
 void ParameterDisplay::timerCallback()
 {
     if (parameter != nullptr)
     {
-        float val = parameter->getValue(); // normalized
+        float val = parameter->getValue();
         juce::String units;
 
-        // Example: append units if float parameter has range
         if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(parameter))
         {
-            val = floatParam->get(); // actual value
-            units = floatParam->label; // e.g., "dB", "Hz"
+            val = floatParam->get();
+            units = floatParam->label;
         }
 
+        // Show current value
         valueLabel.setText(juce::String(val, 2) + " " + units, juce::dontSendNotification);
+
+        // Show offset if target exists
+        if (targetValue.has_value())
+        {
+            float diff = val - targetValue.value();
+            if (std::abs(diff) > 0.01f)
+                offsetLabel.setText((diff > 0 ? "+" : "") + juce::String(diff, 2), juce::dontSendNotification);
+            else
+                offsetLabel.setText("", juce::dontSendNotification);
+        }
+        else
+        {
+            offsetLabel.setText("", juce::dontSendNotification);
+        }
     }
 }
+
+void ParameterDisplay::setTargetValue(float newTarget)
+{
+    targetValue = newTarget;
+}
+
 
 
 PluginDropZone::PluginDropZone(ChainBuilderAudioProcessor& proc)

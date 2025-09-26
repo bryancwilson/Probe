@@ -4,6 +4,7 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="LRpIBn" name="ChainBuilder">
     <GROUP id="{72333E65-4C6E-456F-BEB2-26A0DE505578}" name="Source">
+      <FILE id="OxuYuQ" name="Input.cpp" compile="1" resource="0" file="Source/Input.cpp"/>
       <FILE id="hrsIyH" name="License.cpp" compile="1" resource="0" file="Source/License.cpp"/>
       <FILE id="HKrWmE" name="License.h" compile="0" resource="0" file="Source/License.h"/>
       <GROUP id="{5B4AE0FB-663D-0EAF-4D02-7A6267AF065D}" name="LLM">

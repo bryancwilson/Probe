@@ -71,12 +71,16 @@ public:
     void paint(juce::Graphics& g) override {}
     void timerCallback() override;
 
+    juce::AudioProcessorParameter* getParameter() const { return parameter; }
     juce::AudioProcessorParameter* parameter; // parameter to display
 
+    std::optional<float> targetValue; // LLM target midpoint
+    void setTargetValue(float newTarget);
     
 private:
 
 
     juce::Label nameLabel;  // small font for name
     juce::Label valueLabel; // larger font for value
+    juce::Label offsetLabel; // small offset label
 };

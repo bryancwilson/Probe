@@ -169,7 +169,7 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             auto* channelData = buffer.getReadPointer(0);
             for (int i = 0; i < buffer.getNumSamples(); ++i)
             {
-                pushNextSampleIntoFifo(channelData[i]);
+                pushNextSampleIntoFifo(channelData[i], buffer);
             }
         }
 
@@ -180,7 +180,7 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         auto* channelData = buffer.getReadPointer(0); // pointer to first channel
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
-            pushNextSampleIntoFifo(channelData[i]);
+            pushNextSampleIntoFifo(channelData[i], buffer);
         }
     }
 
@@ -188,7 +188,7 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
 }
 
-void ChainBuilderAudioProcessor::pushNextSampleIntoFifo(float sample) noexcept
+void ChainBuilderAudioProcessor::pushNextSampleIntoFifo(float sample, juce::AudioBuffer<float>& buffer) noexcept
 {
     // if the fifo contains enough data, set a flag to say that the next frame should now be rendered..
     if (fifoIndex == fftSize)
@@ -196,6 +196,16 @@ void ChainBuilderAudioProcessor::pushNextSampleIntoFifo(float sample) noexcept
         juce::zeromem(fftData, sizeof(fftData));    // clear fftData buffer
         memcpy(fftData, fifo, sizeof(fifo));        // copy FIFO into fftData
 
+        // Time Based Functions
+        rms = Metrics::computeRMS(buffer);
+        lufs = Metrics::computeLUFS(buffer, getSampleRate());
+        peak = Metrics::computePeakLevel(buffer);
+        crest_factor = Metrics::computeCrestFactor(buffer);
+        transient_sharpness = Metrics::computeTransientSharpness(buffer, getSampleRate());
+        decay_time = Metrics::computeDecayTime(buffer, getSampleRate());
+        stereo_correlation = Metrics::computeStereoCorrelation(buffer);
+
+        // Frequency Based Functions
         window.multiplyWithWindowingTable(fftData, fftSize);        // Window the signal first
         forwardFFT.performRealOnlyForwardTransform(fftData, fftData);   // Perform forward FFT including phase
 
@@ -205,11 +215,11 @@ void ChainBuilderAudioProcessor::pushNextSampleIntoFifo(float sample) noexcept
         resonance_score = Metrics::computeResonanceScore(fftData, getSampleRate());
         harmonic_to_noise = Metrics::computeHarmonicToNoiseRatio(fftData, getSampleRate());
 
-        DBG("Spectral Centroid: " << juce::String(spectral_centroid)
-        << " Spectral Rollof: " << juce::String(spectral_rolloff)
-        << " Spectral Flatness: " << juce::String(spectral_flatness)
-        << " Resonance Score: " << juce::String(resonance_score)
-        << " Harmonic to Noise Ratio: " << juce::String(harmonic_to_noise));
+        //DBG("Spectral Centroid: " << juce::String(spectral_centroid)
+        //<< " Spectral Rollof: " << juce::String(spectral_rolloff)
+        //<< " Spectral Flatness: " << juce::String(spectral_flatness)
+        //<< " Resonance Score: " << juce::String(resonance_score)
+        //<< " Harmonic to Noise Ratio: " << juce::String(harmonic_to_noise));
         fifoIndex = 0;                              // reset FIFO index
     }
 

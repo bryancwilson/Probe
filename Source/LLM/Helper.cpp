@@ -34,6 +34,8 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
 
         {"stereo_correlation", std::to_string(audioProcessor.stereo_correlation)},
         {"modulation_depth", std::to_string(audioProcessor.modulation_depth)},
+
+        {"prompt", creative_text}
     };
 
     std::string jsonPayload = payload.dump();
@@ -84,11 +86,62 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
         {
             json j = json::parse(response);
             std::string generatedText = j["response"];
-            
-            return generatedText;
-            
 
+            // --- find the RANGE block ---
+            std::string plainText = generatedText;
+            std::string rangeBlock;
+
+            size_t rangePos = generatedText.find("RANGE:");
+            if (rangePos != std::string::npos)
+            {
+                // split into text + range JSON
+                plainText = generatedText.substr(0, rangePos);
+                rangeBlock = generatedText.substr(rangePos + 6); // skip "RANGE:"
+
+                // trim whitespace
+                auto trim = [](std::string& s) {
+                    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+                        return !std::isspace(ch);
+                        }));
+                    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+                        return !std::isspace(ch);
+                        }).base(), s.end());
+                    };
+                trim(rangeBlock);
+
+                // parse JSON array
+                try
+                {
+                    json rangeJson = json::parse(rangeBlock);
+
+                    for (auto& item : rangeJson)
+                    {
+                        std::string param = item.value("parameter", "");
+                        float target = item.value("target", 0.0f);
+
+                        DBG("Parameter: " << param
+                            << " Target: " << target);
+
+                        //// Find the corresponding ParameterDisplay and set the target
+                        for (auto* display : parameterDisplays)
+                        {
+                            if (display->getParameter()->getName(100).toStdString() == param)
+                            {
+                                display->setTargetValue(target);
+                                break; // found it, no need to continue
+                            }
+                        }
+                    }
+                }
+                catch (std::exception& e)
+                {
+                    DBG("Failed to parse RANGE JSON: " << e.what());
+                }
+            }
+
+            return plainText; // return the suggestion text only
         }
+
         else
         {
             return "Uh oh! Something went wrong! Please comeback and try again in a few minutes.";

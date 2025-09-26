@@ -82,12 +82,6 @@ void ChainBuilderAudioProcessorEditor::updateLicenseState()
     }
 }
 
-size_t WriteCallback(void* contents, size_t size, size_t nmemb, string* output) {
-    size_t total_size = size * nmemb;
-    output->append((char*)contents, total_size);
-    return total_size;
-}
-
 bool validate_license(std::string returned_licenseID) {
     const std::string url = "https://mydb-api-rpyo.onrender.com/val";
 

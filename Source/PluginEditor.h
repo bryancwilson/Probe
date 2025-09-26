@@ -70,6 +70,7 @@ public:
     std::string loadLicenseID();
 
     // Input Functions
+    std::string creative_text = "";
     void set_textbox(int id);
     void handleTextInput(int id);
 
@@ -78,8 +79,9 @@ public:
     uint32_t color_2 = 0xffd98324;
     uint32_t color_4 = 0xfff2f6d0;
 
-    // In your component header
-    juce::Rectangle<int> paramBoxDebug;
+    // Display
+    void display_params();
+    void testParameterDisplayOffsets();
 
 private:
     // This reference is provided as a quick way for your editor to

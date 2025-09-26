@@ -70,22 +70,22 @@ public:
     int fifoIndex = 0;
     juce::dsp::FFT forwardFFT; // instantiating (FFT) class to perform the forward FFT on
     juce::dsp::WindowingFunction<float> window; // instantiating (window) class to apply windowing function on
-    void pushNextSampleIntoFifo(float sample) noexcept;
+    void pushNextSampleIntoFifo(float sample, juce::AudioBuffer<float>& buffer) noexcept;
     
     /* Metric Variables */
-    float spectral_centroid;
-    float spectral_rolloff;
-    float spectral_flatness;
-    float resonance_score;
-    float harmonic_to_noise;
-    float rms;
-    float lufs;
-    float peak;
-    float crest_factor;
-    float transient_sharpness;
-    float decay_time;
-    float stereo_correlation;
-    float modulation_depth;
+    float spectral_centroid = 0.f;
+    float spectral_rolloff = 0.f;
+    float spectral_flatness = 0.f;
+    float resonance_score = 0.f;
+    float harmonic_to_noise = 0.f;
+    float rms = 0.f;
+    float lufs = 0.f;
+    float peak = 0.f;
+    float crest_factor = 0.f;
+    float transient_sharpness = 0.f;
+    float decay_time = 0.f;
+    float stereo_correlation = 0.f;
+    float modulation_depth = 0.f;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChainBuilderAudioProcessor)
