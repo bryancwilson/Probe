@@ -18,7 +18,6 @@ ChainBuilderAudioProcessorEditor::ChainBuilderAudioProcessorEditor (ChainBuilder
     initWindowSize_Editor();
     dropZone = new PluginDropZone(audioProcessor);
 
-
 }
 
 ChainBuilderAudioProcessorEditor::~ChainBuilderAudioProcessorEditor()
@@ -26,6 +25,13 @@ ChainBuilderAudioProcessorEditor::~ChainBuilderAudioProcessorEditor()
 }
 
 //==============================================================================
+
+// This ensures any click in the editor window grabs keyboard focus
+void ChainBuilderAudioProcessorEditor::mouseDown (const juce::MouseEvent&)
+{
+    grabKeyboardFocus();
+}
+
 void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
 {
     // Fill the background black
@@ -57,7 +63,9 @@ void ChainBuilderAudioProcessorEditor::resized()
     // =========== Display Section Titles =================
     int labelWidth = 100;   // desired width of the label
     int labelHeight = 25;   // desired height
-
+    int creativeWidth = 200;   // desired width of the label
+    int creativeHeight = 100;
+    
     int x_translate = (area.getWidth() - labelWidth) / 2.8f;  // center horizontally
     int x_discuss = (area.getWidth() - labelWidth) / 1.3f;  // center horizontally
     int y = 10;  // small top margin
@@ -76,16 +84,29 @@ void ChainBuilderAudioProcessorEditor::resized()
     Discuss.setJustificationType(juce::Justification::centred);
     Discuss.setBounds(x_discuss, y, labelWidth, labelHeight);
     addAndMakeVisible(Discuss);
+    
+    // After you set Translate bounds
+    auto translateBounds = Translate.getBounds();
+    int x_creative_text = translateBounds.getCentreX() - creativeWidth / 2;
+    
+    creative_response.setFont(juce::Font(font, 15.0f, 0));
+    creative_response.setColour(juce::Label::textColourId, juce::Colours::white);
+    creative_response.setJustificationType(juce::Justification::centred);
+    creative_response.setBounds(x_creative_text, y + 300, creativeWidth, creativeHeight);
+    addAndMakeVisible(creative_response);
 
     // ================ Textboxes ======================
     int componentWidth = 208;
-    int x_component = (area.getWidth() - componentWidth) / 2.8f;  // center horizontally
+    int x_component = translateBounds.getCentreX() - componentWidth / 2;
 
     textBox.setBounds(x_component, getHeight() * 0.80, componentWidth, 30);
     textBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black);
     textBox.setColour(juce::CaretComponent::caretColourId, juce::Colours::white);
     textBox.setColour(juce::TextEditor::outlineColourId, juce::Colour(color_4));
     textBox.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(color_2));
+    
+    // ================ AI Creative Response ===================
+    
 
 
 

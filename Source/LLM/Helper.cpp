@@ -13,11 +13,12 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
 {
     const std::string url = "https://mydb-api-rpyo.onrender.com/generate_probe";
 
+    juce::String ps = dropZone->param_list;
     json payload;
     payload = {
         {"plugin_name", "AI EQ"},
         {"plugin_type", "Equalizer"},
-        {"available_parameters", "gain, frequency, q"},
+        {"available_parameters", ps.toStdString()},
 
         {"spectral_centroid", std::to_string(audioProcessor.spectral_centroid)},
         {"spectral_rolloff", std::to_string(audioProcessor.spectral_rolloff)},
@@ -96,6 +97,8 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
             {
                 // split into text + range JSON
                 plainText = generatedText.substr(0, rangePos);
+                creative_response.setText(plainText, juce::dontSendNotification);
+                
                 rangeBlock = generatedText.substr(rangePos + 6); // skip "RANGE:"
 
                 // trim whitespace

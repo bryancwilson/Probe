@@ -100,7 +100,7 @@ void ChainBuilderAudioProcessorEditor::display_params()
         float rowHeight = (bounds.getHeight() - (rows - 1) * rowSpacing) / rows;
 
         // for (int i = 0; i < parameterDisplays.size(); ++i)
-        int numToShow = std::min<int>(6, parameterDisplays.size());
+        int numToShow = std::min<int>(9, parameterDisplays.size());
         for (int i = 0; i < numToShow; ++i)
         {
             int row = i / columns;
@@ -111,8 +111,6 @@ void ChainBuilderAudioProcessorEditor::display_params()
 
             parameterDisplays[i]->setBounds(x, y, colWidth, rowHeight);
         }
-
-
     }
 }
 
@@ -177,6 +175,30 @@ void ChainBuilderAudioProcessorEditor::display_metrics()
 }
 
 // CLASSES
+class NonFocusableDialog : public juce::DialogWindow
+{
+public:
+    NonFocusableDialog (const juce::String& title,
+                        juce::Colour background,
+                        bool escapeKeyCloses)
+        : DialogWindow (title, background, escapeKeyCloses)
+    {
+        setWantsKeyboardFocus (false);
+    }
+
+    int getDesktopWindowStyleFlags() const override
+    {
+        // Start with the default flags that DialogWindow wants
+        int flags = DialogWindow::getDesktopWindowStyleFlags();
+
+        // Add the “ignore key presses” bit so the OS never gives this
+        // native window keyboard focus
+        flags |= juce::ComponentPeer::windowIgnoresKeyPresses;
+
+        return flags;
+    }
+};
+
 ParameterDisplay::ParameterDisplay(juce::AudioProcessorParameter* p)
     : parameter(p)
 {
@@ -380,16 +402,18 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
     {
         if (auto* editor = audioProcessor.hostedPlugin->createEditorIfNeeded())
         {
-            auto* window = new juce::DialogWindow(
+            auto* window = new NonFocusableDialog (
                 audioProcessor.hostedPlugin->getName(),
                 juce::Colours::black,
                 true
             );
 
-            window->setContentOwned(editor, true);
-            window->centreWithSize(editor->getWidth(), editor->getHeight());
-            window->setVisible(true);
+            window->setContentOwned (editor, true);
+            window->centreWithSize (editor->getWidth(), editor->getHeight());
+            window->setVisible (true);
         }
+
+
 
         auto* processor = audioProcessor.hostedPlugin.get();
 
@@ -404,7 +428,10 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
         {
             param->addListener(this); // Listen to changes
             parameters.add(param);
-
+            
+            // Create List of Param Names
+            param_list += param->getName(100) + ", ";
+            
             DBG("Parameter: " << param->getName(100)
                 << ", Value: " << param->getValue()
                 << ", Default: " << param->getDefaultValue()
@@ -541,3 +568,4 @@ void PluginDropZone::itemDropped(const juce::DragAndDropTarget::SourceDetails& /
     DBG("Plugin dropped!");
     repaint();
 }
+

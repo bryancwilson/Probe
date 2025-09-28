@@ -24,8 +24,12 @@ public:
     void parameterValueChanged(int parameterIndex, float newValue) override;
     void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override;
 
+    // Flags
+    bool plugin_painted = false;
+    
     juce::Array<juce::AudioProcessorParameter*> parameters;
-
+    juce::String param_list = "";
+    
     ChainBuilderAudioProcessor& audioProcessor; // store reference to processor
     float dashPhase = 0.0f; // 0..1, updated every timer tick
 

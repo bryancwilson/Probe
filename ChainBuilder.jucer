@@ -4,11 +4,11 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="LRpIBn" name="ChainBuilder">
     <GROUP id="{72333E65-4C6E-456F-BEB2-26A0DE505578}" name="Source">
-      <FILE id="OxuYuQ" name="Input.cpp" compile="1" resource="0" file="Source/Input.cpp"/>
-      <FILE id="hrsIyH" name="License.cpp" compile="1" resource="0" file="Source/License.cpp"/>
-      <FILE id="HKrWmE" name="License.h" compile="0" resource="0" file="Source/License.h"/>
-      <GROUP id="{5B4AE0FB-663D-0EAF-4D02-7A6267AF065D}" name="LLM">
-        <FILE id="dd16jK" name="Helper.cpp" compile="1" resource="0" file="Source/LLM/Helper.cpp"/>
+      <FILE id="nPeCFw" name="Input.cpp" compile="1" resource="0" file="Source/Input.cpp"/>
+      <FILE id="E2oQCS" name="License.cpp" compile="1" resource="0" file="Source/License.cpp"/>
+      <FILE id="T8y0UF" name="License.h" compile="0" resource="0" file="Source/License.h"/>
+      <GROUP id="{263B1C46-EB44-65CA-5AB3-E73CBB859B18}" name="LLM">
+        <FILE id="uF7LGB" name="Helper.cpp" compile="1" resource="0" file="Source/LLM/Helper.cpp"/>
       </GROUP>
       <GROUP id="{F664E49F-663B-BA51-C213-86D2EDEFCCEA}" name="Metrics">
         <FILE id="WC7Czu" name="Metrics.cpp" compile="1" resource="0" file="Source/Metrics/Metrics.cpp"/>
@@ -52,10 +52,7 @@
   <EXPORTFORMATS>
     <VS2022 targetFolder="Builds/VisualStudio2022">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" targetName="ChainBuilder" headerPath="..\..\External\libcurl\include\curl\include&#10;C:\Users\Developer\include&#10;..\..\json\single_include"
-                       extraLinkerFlags="C:\Users\Developer\cpprest_2_10.lib&#10;C:\Users\Developer\JUCE_PROJECTS\ParametricEQ_1\External\libcurl\libcurl.lib&#10;crypt32.lib&#10;secur32.lib&#10;ws2_32.lib&#10;wldap32.lib&#10;advapi32.lib"
-                       defines="C:\Users\Developer\aax-sdk-2-8-1&#10;CURL_STATICLIB"
-                       libraryPath="..\..\External\libcurl\include\curl\lib&#10;C:\Users\Developer\cpprest_2_10.lib"/>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="ChainBuilder"/>
         <CONFIGURATION isDebug="0" name="Release" targetName="ChainBuilder"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
@@ -78,8 +75,10 @@
     </VS2022>
     <XCODE_MAC targetFolder="Builds/MacOSX">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug"/>
-        <CONFIGURATION isDebug="0" name="Release"/>
+        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../json/single_include"
+                       extraLinkerFlags="-lcurl"/>
+        <CONFIGURATION isDebug="0" name="Release" headerPath="../../json/single_include"
+                       extraLinkerFlags="-lcurl"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../../juce"/>

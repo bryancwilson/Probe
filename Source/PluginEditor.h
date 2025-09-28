@@ -37,6 +37,7 @@ public:
     juce::Label Discuss;
     juce::Label metrics_text;
     juce::Label main_text;
+    juce::Label creative_response;
     std::string b_text;
     juce::TextEditor textBox;
     juce::Rectangle<float> text_box_bounds;
@@ -82,6 +83,10 @@ public:
     // Display
     void display_params();
     void testParameterDisplayOffsets();
+    
+    // Focus
+    // This ensures any click in the editor window grabs keyboard focus
+    void mouseDown (const juce::MouseEvent&) override;
 
 private:
     // This reference is provided as a quick way for your editor to
