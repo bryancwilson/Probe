@@ -282,9 +282,8 @@ void ParameterDisplay::setTargetValue(float newTarget)
 
 
 
-PluginDropZone::PluginDropZone(ChainBuilderAudioProcessor& proc)
-    : audioProcessor(proc)
-{
+PluginDropZone::PluginDropZone(ChainBuilderAudioProcessor& proc, ChainBuilderAudioProcessorEditor& editorRef)
+    : audioProcessor(proc), hostEditor(editorRef) {
     formatManager.addDefaultFormats(); // VST, AU, etc.
     startTimerHz(60); // repaint 60 times per second
 }
@@ -377,7 +376,7 @@ void PluginDropZone::paint(juce::Graphics& g)
 
 void PluginDropZone::resized()
 {
-    // Nothing special
+
 }
 
 
@@ -394,26 +393,41 @@ bool PluginDropZone::isClickOnPlus(const juce::Point<int>& pos)
 // Mouse click handler
 void PluginDropZone::mouseDown(const juce::MouseEvent& event)
 {
-    if (!isClickOnPlus(event.getPosition()))
+    if (!isClickOnPlus(event.getPosition())) 
         return;
 
     // If a plugin is already loaded -> open its GUI
     if (audioProcessor.hostedPlugin != nullptr)
     {
-        if (auto* editor = audioProcessor.hostedPlugin->createEditorIfNeeded())
+        if (auto* instance = audioProcessor.hostedPlugin.get())
         {
-            auto* window = new NonFocusableDialog (
-                audioProcessor.hostedPlugin->getName(),
-                juce::Colours::black,
-                true
-            );
+            if (auto* ed = instance->createEditorIfNeeded())
+            {
+                editor.reset(ed);
+                addAndMakeVisible(editor.get());
 
-            window->setContentOwned (editor, true);
-            window->centreWithSize (editor->getWidth(), editor->getHeight());
-            window->setVisible (true);
+                // Animate appearance
+                static juce::ComponentAnimator animator;
+
+                // Target bounds: left side of Probe window (minus sidebar)
+                int sidebarWidth = 300;
+                auto fullArea = getLocalBounds();
+                auto pluginArea = fullArea.removeFromRight(sidebarWidth);
+
+                // Animate from collapsed to full height
+                ed->setBounds(pluginArea.withHeight(1));
+                animator.animateComponent(editor.get(),
+                    pluginArea,
+                    1.0f,   // final alpha
+                    300,    // ms duration
+                    true,   // use proxy
+                    0.0f,
+                    0.0f);
+
+                hostEditor.extend_panel = true;
+                hostEditor.togglePromptSidebar(hostEditor.extend_panel);
+            }
         }
-
-
 
         auto* processor = audioProcessor.hostedPlugin.get();
 

@@ -5,10 +5,13 @@
 #include <JuceHeader.h>
 #include "../../PluginEditor.h"
 
+class ChainBuilderAudioProcessorEditor; // forward declaration
+
+
 class PluginDropZone : public juce::Component, public juce::DragAndDropTarget, public juce::AudioProcessorParameter::Listener, private juce::Timer
 {
 public:
-    PluginDropZone(ChainBuilderAudioProcessor& proc);
+    PluginDropZone(ChainBuilderAudioProcessor& proc, ChainBuilderAudioProcessorEditor& editorRef);
     ~PluginDropZone() override;
 
     void paint(juce::Graphics& g) override;
@@ -31,6 +34,8 @@ public:
     juce::String param_list = "";
     
     ChainBuilderAudioProcessor& audioProcessor; // store reference to processor
+    ChainBuilderAudioProcessorEditor& hostEditor;             // reference to editor
+
     float dashPhase = 0.0f; // 0..1, updated every timer tick
 
     bool params_loaded = false;
@@ -43,6 +48,12 @@ private:
     juce::AudioPluginFormatManager formatManager;
     juce::KnownPluginList pluginList;
 
+    std::unique_ptr<juce::AudioProcessorEditor> editor; // hosted editor pointer
+
+    juce::TextEditor promptBox;
+    juce::TextButton sendButton;
+    juce::Label outputLabel;
+
     // Handle Plugin View
     std::unique_ptr<juce::AudioPluginInstance> pluginInstance;
     juce::String selectedPluginName;
@@ -50,6 +61,28 @@ private:
     juce::AudioBuffer<float>* hostedPluginBuffer = nullptr; // pointer to buffer from hosted plugin
     void timerCallback() override;
 };
+
+struct NonFocusableWrapper : public juce::Component
+{
+    NonFocusableWrapper(juce::AudioProcessorEditor* editorIn)
+        : editor(editorIn)
+    {
+        jassert(editor != nullptr);
+        addAndMakeVisible(editor);
+        setWantsKeyboardFocus(false);       // wrapper itself never takes focus
+        editor->setWantsKeyboardFocus(false); // prevent child from requesting focus
+    }
+
+    void resized() override
+    {
+        if (editor != nullptr)
+            editor->setBounds(getLocalBounds());
+    }
+
+private:
+    juce::AudioProcessorEditor* editor;
+};
+
 
 class Listener
 {

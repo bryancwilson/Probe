@@ -16,7 +16,8 @@ ChainBuilderAudioProcessorEditor::ChainBuilderAudioProcessorEditor (ChainBuilder
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     initWindowSize_Editor();
-    dropZone = new PluginDropZone(audioProcessor);
+    dropZone = new PluginDropZone(audioProcessor, *this);
+
 
 }
 
@@ -51,14 +52,91 @@ void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
     set_textbox(4);
 
     // Position and show your drop zone
-    dropZone->setBounds (0, 40, getWidth() * 0.2f, getHeight() - 80);
+    dropZone->setBounds (0, 0, getWidth() * 0.2f, getHeight() - 80);
     addAndMakeVisible (dropZone);
 }
 
+void ChainBuilderAudioProcessorEditor::togglePromptSidebar(bool shouldShow)
+{
+    if (sidebarVisible == shouldShow)
+        return; // no change needed
+
+    sidebarVisible = shouldShow;
+
+    int currentWidth = getWidth();
+    int targetWidth = sidebarVisible ? currentWidth + sidebarWidth : currentWidth - sidebarWidth;
+
+    // Animate the window resize (optional)
+    static juce::ComponentAnimator animator;
+    animator.animateComponent(this,
+        { getX(), getY(), targetWidth, getHeight() },
+        1.0f,
+        300,   // duration ms
+        false, // don't use proxy (animate actual component)
+        0.0f,
+        0.0f);
+
+
+    resized();
+
+}
 void ChainBuilderAudioProcessorEditor::resized()
 {
 
     auto area = getLocalBounds(); // full plugin area
+
+    // ================== Display Slidebar =======================
+    if (sidebarVisible)
+    {
+        auto sidebar = area.removeFromLeft(sidebarWidth);
+        auto buttonHeight = 30;
+        int padding = 10;
+
+        // --- Translate header & text box (top half) ---
+        juce::String fontName = "Arial";
+        int labelHeight = 25;
+        int textBoxHeight = 30;
+
+        // Calculate vertical positioning
+        auto translateArea = sidebar.reduced(padding);
+        int yOffset = translateArea.getCentreY() - (labelHeight + textBoxHeight + padding) / 2;
+
+        // Place Translate label
+        Translate.setFont(juce::Font(fontName, 16.0f, juce::Font::bold));
+        Translate.setText("Translate", juce::dontSendNotification);
+        Translate.setColour(juce::Label::textColourId, juce::Colours::white);
+        Translate.setJustificationType(juce::Justification::centred);
+
+        Translate.setBounds(translateArea.getX(),
+            yOffset,
+            translateArea.getWidth(),
+            labelHeight);
+        addAndMakeVisible(Translate);
+
+        // --- Creative Response Header ---
+        creative_response.setFont(juce::Font(fontName, 15.0f, juce::Font::plain));
+        creative_response.setText("AI Response:", juce::dontSendNotification);
+        creative_response.setColour(juce::Label::textColourId, juce::Colours::white);
+        creative_response.setJustificationType(juce::Justification::centredLeft);
+        creative_response.setBounds(sidebar.getX() + padding,
+            sendButton.getBottom() + (padding * 2),
+            sidebar.getWidth() - 2 * padding,
+            labelHeight);
+
+        addAndMakeVisible(creative_response);
+        // Place text box directly below
+        textBox.setBounds(translateArea.getX() + padding,
+            yOffset + labelHeight + padding,
+            translateArea.getWidth() - 2 * padding,
+            textBoxHeight);
+        textBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black);
+        textBox.setColour(juce::TextEditor::textColourId, juce::Colours::white);
+        textBox.setColour(juce::TextEditor::outlineColourId, juce::Colour(color_4));
+        textBox.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(color_2));
+        addAndMakeVisible(textBox);
+
+        return;
+    }
 
     // =========== Display Section Titles =================
     int labelWidth = 100;   // desired width of the label
@@ -106,8 +184,6 @@ void ChainBuilderAudioProcessorEditor::resized()
     textBox.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(color_2));
     
     // ================ AI Creative Response ===================
-    
-
-
+   
 
 }

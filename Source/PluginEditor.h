@@ -83,10 +83,22 @@ public:
     // Display
     void display_params();
     void testParameterDisplayOffsets();
+
+    // Slidebar
+    bool sidebarVisible = false;
+    int sidebarWidth = 300;
+    bool extend_panel = false;
+    void togglePromptSidebar(bool shouldShow);
+    juce::TextEditor promptBox;
+    juce::TextButton sendButton{ "Send" };
+    juce::Label outputLabel;
     
     // Focus
     // This ensures any click in the editor window grabs keyboard focus
     void mouseDown (const juce::MouseEvent&) override;
+
+    // Animation
+    juce::ComponentAnimator animator;
 
 private:
     // This reference is provided as a quick way for your editor to
@@ -94,6 +106,7 @@ private:
     ChainBuilderAudioProcessor& audioProcessor;
 
     juce::OwnedArray<ParameterDisplay> parameterDisplays;
+    std::unique_ptr<juce::AudioProcessorEditor> hostedPluginEditor;
 
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChainBuilderAudioProcessorEditor)
