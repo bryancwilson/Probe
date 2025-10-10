@@ -404,6 +404,11 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
             if (auto* ed = instance->createEditorIfNeeded())
             {
                 editor.reset(ed);
+
+                // Plugin editor should not eat keyboard focus
+                ed->setWantsKeyboardFocus(false);
+                ed->setInterceptsMouseClicks(true, false);
+
                 addAndMakeVisible(editor.get());
 
                 // Animate appearance

@@ -88,7 +88,7 @@ void ChainBuilderAudioProcessorEditor::resized()
     // ================== Display Slidebar =======================
     if (sidebarVisible)
     {
-        auto sidebar = area.removeFromLeft(sidebarWidth);
+        auto sidebar = area.removeFromRight(sidebarWidth);
         auto buttonHeight = 30;
         int padding = 10;
 
@@ -133,6 +133,10 @@ void ChainBuilderAudioProcessorEditor::resized()
         textBox.setColour(juce::TextEditor::textColourId, juce::Colours::white);
         textBox.setColour(juce::TextEditor::outlineColourId, juce::Colour(color_4));
         textBox.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(color_2));
+        textBox.setWantsKeyboardFocus(true);
+        textBox.setInterceptsMouseClicks(true, true);
+        textBox.grabKeyboardFocus();
+
         addAndMakeVisible(textBox);
 
         return;

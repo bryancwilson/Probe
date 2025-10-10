@@ -146,16 +146,18 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // ======================= White Noise Test ==========================
     if (useWhiteNoiseForFifo)
     {
-        // 1. Generate signal (noise or DAW input)
-        for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+        if (buffer.getNumChannels() > 0)
         {
-            auto* writePointer = buffer.getWritePointer(channel);
-            for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+            for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
             {
-                float noise = juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
-                writePointer[sample] = noise; // overwrite instead of add for clean test
+                auto* writePointer = buffer.getWritePointer(channel);
+                for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+                {
+                    float noise = juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
+                    writePointer[sample] = noise;
+                }
             }
-        }  
+        }
 
         // 2. Pass through hosted EQ
         if (hostedPlugin != nullptr)
