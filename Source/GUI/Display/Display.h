@@ -4,10 +4,11 @@
 
 #include <JuceHeader.h>
 #include "../../PluginEditor.h"
+#include <unordered_map>
 
 class ChainBuilderAudioProcessorEditor; // forward declaration
 
-
+// ===============================================================================================================
 class PluginDropZone : public juce::Component, public juce::DragAndDropTarget, public juce::AudioProcessorParameter::Listener, private juce::Timer
 {
 public:
@@ -37,6 +38,7 @@ public:
     ChainBuilderAudioProcessorEditor& hostEditor;             // reference to editor
 
     float dashPhase = 0.0f; // 0..1, updated every timer tick
+    std::unordered_map<int, std::pair<juce::String, juce::String>> changedParameters;
 
     bool params_loaded = false;
 private:
@@ -62,6 +64,7 @@ private:
     void timerCallback() override;
 };
 
+// ===============================================================================================================
 struct NonFocusableWrapper : public juce::Component
 {
     NonFocusableWrapper(juce::AudioProcessorEditor* editorIn)
@@ -83,7 +86,7 @@ private:
     juce::AudioProcessorEditor* editor;
 };
 
-
+// ===============================================================================================================
 class Listener
 {
 public:
@@ -93,6 +96,7 @@ public:
     virtual void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) = 0;
 };
 
+// ===============================================================================================================
 class ParameterDisplay : public juce::Component,
     private juce::Timer   // Timer for updating value
 {
@@ -113,6 +117,7 @@ public:
 
     std::optional<float> targetValue; // LLM target midpoint
     void setTargetValue(float newTarget);
+    void applyDelta(float delta);
     
 private:
 

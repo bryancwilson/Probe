@@ -138,6 +138,17 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
+    // Set buffer to have correct number of channels
+    if (hostedPlugin != nullptr)
+    {
+        //DBG("============== Hosted Plugin Information");
+        //DBG("Plugin Input Channels: " << hostedPlugin->getTotalNumInputChannels());
+        //DBG("Plugin Output Channels: " << hostedPlugin->getTotalNumOutputChannels());
+        //DBG("Buffer Channels: " << buffer.getNumChannels());
+
+        buffer.setSize(hostedPlugin->getTotalNumInputChannels(), buffer.getNumSamples(), true, true, true);
+    }
+
     // Clear any output channels that don't contain input data
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
@@ -168,12 +179,24 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         // 3. Analyze *post-EQ* signal (first channel is fine for FFT)
         if (buffer.getNumChannels() > 0)
         {
-            auto* channelData = buffer.getReadPointer(0);
-            for (int i = 0; i < buffer.getNumSamples(); ++i)
+            for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
             {
-                pushNextSampleIntoFifo(channelData[i], buffer);
+                auto* channelData = buffer.getReadPointer(ch);
+                float chSum = 0.0f;
+
+                for (int i = 0; i < buffer.getNumSamples(); ++i)
+                {
+                    chSum += std::abs(channelData[i]);
+
+                    if (ch == 0)
+                        pushNextSampleIntoFifo(channelData[i], buffer);
+                }
+
+                // DBG("Post-plugin buffer energy: channel " << ch << " = " << chSum);
             }
         }
+
+
 
     }
     // Live From DAW

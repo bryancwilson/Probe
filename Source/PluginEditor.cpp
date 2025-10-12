@@ -46,7 +46,7 @@ void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
     
     // Display Functions
     display_metrics();
-    display_params();
+    // display_params();
     // testParameterDisplayOffsets();
 
     set_textbox(4);
@@ -91,6 +91,7 @@ void ChainBuilderAudioProcessorEditor::resized()
         auto sidebar = area.removeFromRight(sidebarWidth);
         auto buttonHeight = 30;
         int padding = 10;
+        auto sidebarArea = sidebar.reduced(padding);
 
         // --- Translate header & text box (top half) ---
         juce::String fontName = "Arial";
@@ -112,6 +113,15 @@ void ChainBuilderAudioProcessorEditor::resized()
             translateArea.getWidth(),
             labelHeight);
         addAndMakeVisible(Translate);
+
+        // === Parameter Displays in Sidebar ===
+        auto paramDisplayArea = sidebarArea.withY(sidebarArea.getY() + yOffset)
+            .withHeight(200); // e.g. 200px space for params
+
+        display_params(paramDisplayArea); // 🟢 pass this in
+
+        yOffset += paramDisplayArea.getHeight() + 10;
+
 
         // --- Creative Response Header ---
         creative_response.setFont(juce::Font(fontName, 15.0f, juce::Font::plain));
@@ -190,4 +200,13 @@ void ChainBuilderAudioProcessorEditor::resized()
     // ================ AI Creative Response ===================
    
 
+}
+
+int ChainBuilderAudioProcessorEditor::extract_min(int val1, int val2)
+{
+    if (val1 < val2)
+    {
+        return val1;
+    }
+    return val2;
 }

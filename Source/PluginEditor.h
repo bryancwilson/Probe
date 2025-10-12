@@ -16,6 +16,8 @@
 #include <iostream>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
+#include <regex>
+#include <vector>
 //==============================================================================
 /**
 */
@@ -81,7 +83,7 @@ public:
     uint32_t color_4 = 0xfff2f6d0;
 
     // Display
-    void display_params();
+    void display_params(juce::Rectangle<int> boundsToUse);
     void testParameterDisplayOffsets();
 
     // Slidebar
@@ -92,6 +94,8 @@ public:
     juce::TextEditor promptBox;
     juce::TextButton sendButton{ "Send" };
     juce::Label outputLabel;
+
+    juce::String paramListStr;
     
     // Focus
     // This ensures any click in the editor window grabs keyboard focus
@@ -99,6 +103,9 @@ public:
 
     // Animation
     juce::ComponentAnimator animator;
+
+    // Misc Functions
+    int extract_min(int val1, int val2);
 
 private:
     // This reference is provided as a quick way for your editor to

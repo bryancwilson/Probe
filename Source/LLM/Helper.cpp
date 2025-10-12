@@ -9,16 +9,28 @@ size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* out
     return total_size;
 
 }
+
 std::string ChainBuilderAudioProcessorEditor::prompt_gen()
 {
     const std::string url = "https://mydb-api-rpyo.onrender.com/generate_probe";
 
     juce::String ps = dropZone->param_list;
     json payload;
+    json paramsJson;
+
+    for (const auto& [index, pair] : dropZone->changedParameters)
+    {
+        json paramJson;
+        paramJson["parameter_name"] = pair.first.toStdString();   // e.g., "200 Hz"
+        paramJson["parameter_value"] = pair.second.toStdString(); // e.g., 0.25
+
+        // Use index as key, convert to string
+        paramsJson[std::to_string(index)] = paramJson;
+    }
+
     payload = {
         {"plugin_name", "AI EQ"},
         {"plugin_type", "Equalizer"},
-        {"available_parameters", ps.toStdString()},
 
         {"spectral_centroid", std::to_string(audioProcessor.spectral_centroid)},
         {"spectral_rolloff", std::to_string(audioProcessor.spectral_rolloff)},
@@ -38,6 +50,7 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
 
         {"prompt", creative_text}
     };
+    payload["parameters"] = paramsJson;
 
     std::string jsonPayload = payload.dump();
 
@@ -119,20 +132,19 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
 
                     for (auto& item : rangeJson)
                     {
-                        std::string param = item.value("parameter", "");
-                        float target = item.value("target", 0.0f);
+                        int index = item.value("parameter_index", -1);
+                        float delta = item.value("target_delta", 0.0f);
 
-                        DBG("Parameter: " << param
-                            << " Target: " << target);
+                        DBG("Index: " << index << " Delta: " << delta);
 
-                        //// Find the corresponding ParameterDisplay and set the target
-                        for (auto* display : parameterDisplays)
+                        if (index >= 0 && index < parameterDisplays.size())
                         {
-                            if (display->getParameter()->getName(100).toStdString() == param)
-                            {
-                                display->setTargetValue(target);
-                                break; // found it, no need to continue
-                            }
+                            auto* display = parameterDisplays[index];
+                            display->applyDelta(delta);
+                        }
+                        else
+                        {
+                            DBG("Invalid parameter index: " << index);
                         }
                     }
                 }

@@ -57,7 +57,7 @@ void ChainBuilderAudioProcessorEditor::showText()
     addAndMakeVisible(main_text);
 }
 
-void ChainBuilderAudioProcessorEditor::display_params()
+void ChainBuilderAudioProcessorEditor::display_params(juce::Rectangle<int> boundsToUse)
 {
     // =============== Display Parameters ===================
     if (audioProcessor.hostedPlugin != nullptr && dropZone->params_loaded)
@@ -73,41 +73,18 @@ void ChainBuilderAudioProcessorEditor::display_params()
             loaded_params = true;
         }
 
-        auto bounds = getLocalBounds().toFloat();
+        auto bounds = boundsToUse.reduced(10).toFloat();  // slight padding
+        int columns = 1;  // vertical stack
+        int rows = std::min<int>(9, parameterDisplays.size());  // limit to 9
 
-        // Example: scale only the x coordinates
-        float xScale = 0.35f;
-        float left = bounds.getX();
-        float width = bounds.getWidth() * xScale; // shrink width
-        float rightOffset = (bounds.getWidth() - width) / 3.303f; // optional center
-
-        bounds.setX(left + rightOffset);
-        bounds.setWidth(width);
-
-        int columns = 3;
-        int rows = (parameterDisplays.size() + columns - 1) / columns;
-
-        // use fractions of width/height instead of fixed pixels
-        float topMargin = bounds.getHeight() * 0.10f;   // 5% of total height
-        float rowSpacing = bounds.getHeight() * 0.01f;   // 1% of total height
-        float colSpacing = bounds.getWidth() * -0.02f;  // -2% of total width (tighten columns)
-
-        // shrink by top margin
-        bounds.removeFromTop(topMargin);
-
-        // compute sizes
-        float colWidth = (bounds.getWidth() - (columns - 1) * colSpacing) / columns;
+        float rowSpacing = 8.0f;
         float rowHeight = (bounds.getHeight() - (rows - 1) * rowSpacing) / rows;
+        float colWidth = bounds.getWidth();
 
-        // for (int i = 0; i < parameterDisplays.size(); ++i)
-        int numToShow = std::min<int>(9, parameterDisplays.size());
-        for (int i = 0; i < numToShow; ++i)
+        for (int i = 0; i < rows; ++i)
         {
-            int row = i / columns;
-            int col = i % columns;
-
-            float x = bounds.getX() + col * (colWidth + colSpacing);
-            float y = bounds.getY() + row * (rowHeight + rowSpacing);
+            float x = bounds.getX();
+            float y = bounds.getY() + i * (rowHeight + rowSpacing);
 
             parameterDisplays[i]->setBounds(x, y, colWidth, rowHeight);
         }
@@ -240,8 +217,15 @@ void ParameterDisplay::resized()
     offsetLabel.setBounds(offsetArea);
 }
 
-
-
+void ParameterDisplay::applyDelta(float delta)
+{
+    if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(parameter))
+    {
+        float current = floatParam->get();
+        float target = std::clamp(current + delta, floatParam->range.start, floatParam->range.end);
+        setTargetValue(target);
+    }
+}
 
 void ParameterDisplay::timerCallback()
 {
@@ -443,19 +427,25 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
         DBG("========================== Plugin Parameters =============================");
         parameters.clear();
 
+        int index = 0;
         for (auto* param : audioProcessor.hostedPlugin->getParameters())
         {
-            param->addListener(this); // Listen to changes
+
+            // Optional: filter out non-automatable or uninteresting params
+            auto c = param->getCategory();
+            if (param->isBoolean() || param->isMetaParameter())
+                continue;
+
+            // Get parameter data
+            auto name = param->getName(100);
+            auto label = param->getLabel();
+
+            // Store and Listen to Paramters
+            param->addListener(this);
             parameters.add(param);
-            
-            // Create List of Param Names
-            param_list += param->getName(100) + ", ";
-            
-            DBG("Parameter: " << param->getName(100)
-                << ", Value: " << param->getValue()
-                << ", Default: " << param->getDefaultValue()
-                << ", Label: " << param->getLabel());
+
         }
+
 
         params_loaded = true;
     }
@@ -502,11 +492,9 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
     }
 
     // Show menu asynchronously, handle selection in lambda
-    int samplerate = 44100;
-    int blockSize = 512;
 
     menu.showMenuAsync(juce::PopupMenu::Options(),
-        [this, pluginTypes, samplerate, blockSize](int result)
+        [this, pluginTypes](int result)
         {
             if (result > 0)
             {
@@ -517,8 +505,8 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
                 juce::String errorMessage;
                 auto instance = formatManager.createPluginInstance(
                     selectedPlugin,
-                    samplerate,
-                    blockSize,
+                    audioProcessor.getSampleRate(),
+                    audioProcessor.getBlockSize(),
                     errorMessage
                 );
 
@@ -531,8 +519,14 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
                     DBG("Plugin loaded successfully!");
 
                     audioProcessor.hostedPlugin = std::move(instance);
+
+                    // Set stereo input/output channel layout
+                    audioProcessor.hostedPlugin->setPlayConfigDetails(2, 2,
+                        audioProcessor.getSampleRate(),
+                        audioProcessor.getBlockSize());
+
                     audioProcessor.hostedPlugin->prepareToPlay(audioProcessor.getSampleRate(), audioProcessor.getBlockSize());
-                    // audioProcessor.pluginPrepared = false;
+                    
 
                     selectedPluginName = selectedPlugin.name;
                     repaint();
@@ -547,11 +541,8 @@ void PluginDropZone::parameterValueChanged(int parameterIndex, float newValue)
     if (parameterIndex < parameters.size())
     {
         auto* param = parameters[parameterIndex];
-        juce::String displayText = param->getName(100) + ": " + param->getText(newValue, 100);
-        DBG(displayText);
-
-        // Optionally repaint your GUI with the new value
-        // e.g., update a label or slider associated with this parameter
+        changedParameters[parameterIndex] = { param->getName(100), param->getText(newValue, 100)}; // Save Parameters Index
+       
     }
 }
 
