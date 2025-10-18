@@ -54,6 +54,8 @@ void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
     // Position and show your drop zone
     dropZone->setBounds (0, 0, getWidth() * 0.2f, getHeight() - 80);
     addAndMakeVisible (dropZone);
+
+    resized();
 }
 
 void ChainBuilderAudioProcessorEditor::togglePromptSidebar(bool shouldShow)
@@ -89,56 +91,53 @@ void ChainBuilderAudioProcessorEditor::resized()
     if (sidebarVisible)
     {
         auto sidebar = area.removeFromRight(sidebarWidth);
-        auto buttonHeight = 30;
         int padding = 10;
-        auto sidebarArea = sidebar.reduced(padding);
-
-        // --- Translate header & text box (top half) ---
-        juce::String fontName = "Arial";
         int labelHeight = 25;
         int textBoxHeight = 30;
+        int sectionSpacing = 10;
 
-        // Calculate vertical positioning
-        auto translateArea = sidebar.reduced(padding);
-        int yOffset = translateArea.getCentreY() - (labelHeight + textBoxHeight + padding) / 2;
+        auto sidebarArea = sidebar.reduced(padding);
+        auto currentY = sidebarArea.getY();
 
-        // Place Translate label
+        juce::String fontName = "Arial";
+
+        // --- Translate Header ---
         Translate.setFont(juce::Font(fontName, 16.0f, juce::Font::bold));
         Translate.setText("Translate", juce::dontSendNotification);
         Translate.setColour(juce::Label::textColourId, juce::Colours::white);
         Translate.setJustificationType(juce::Justification::centred);
-
-        Translate.setBounds(translateArea.getX(),
-            yOffset,
-            translateArea.getWidth(),
-            labelHeight);
+        Translate.setBounds(sidebarArea.getX(), currentY, sidebarArea.getWidth(), labelHeight);
         addAndMakeVisible(Translate);
+        currentY += labelHeight + sectionSpacing;
 
-        // === Parameter Displays in Sidebar ===
-        auto paramDisplayArea = sidebarArea.withY(sidebarArea.getY() + yOffset)
-            .withHeight(200); // e.g. 200px space for params
-
-        display_params(paramDisplayArea); // 🟢 pass this in
-
-        yOffset += paramDisplayArea.getHeight() + 10;
-
+        // --- Parameter Display Area ---
+        int paramAreaHeight = 200;
+        auto paramDisplayArea = juce::Rectangle<int>(
+            sidebarArea.getX(),
+            currentY,
+            sidebarArea.getWidth(),
+            paramAreaHeight
+        );
+        display_params(paramDisplayArea);
+        // testParameterDisplayOffsets();
+        currentY += (paramAreaHeight + sectionSpacing + 60.f);
 
         // --- Creative Response Header ---
         creative_response.setFont(juce::Font(fontName, 15.0f, juce::Font::plain));
         creative_response.setText("AI Response:", juce::dontSendNotification);
         creative_response.setColour(juce::Label::textColourId, juce::Colours::white);
         creative_response.setJustificationType(juce::Justification::centredLeft);
-        creative_response.setBounds(sidebar.getX() + padding,
-            sendButton.getBottom() + (padding * 2),
-            sidebar.getWidth() - 2 * padding,
-            labelHeight);
-
+        creative_response.setBounds(sidebarArea.getX(), currentY, sidebarArea.getWidth(), labelHeight);
         addAndMakeVisible(creative_response);
-        // Place text box directly below
-        textBox.setBounds(translateArea.getX() + padding,
-            yOffset + labelHeight + padding,
-            translateArea.getWidth() - 2 * padding,
-            textBoxHeight);
+        currentY += (labelHeight + sectionSpacing + 40.f);
+
+        // --- Text Box ---
+        textBox.setBounds(
+            sidebarArea.getX(),
+            currentY,
+            sidebarArea.getWidth(),
+            textBoxHeight
+        );
         textBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black);
         textBox.setColour(juce::TextEditor::textColourId, juce::Colours::white);
         textBox.setColour(juce::TextEditor::outlineColourId, juce::Colour(color_4));
@@ -148,6 +147,7 @@ void ChainBuilderAudioProcessorEditor::resized()
         textBox.grabKeyboardFocus();
 
         addAndMakeVisible(textBox);
+
 
         return;
     }

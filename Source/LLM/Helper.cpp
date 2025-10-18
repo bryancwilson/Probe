@@ -125,6 +125,9 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
                     };
                 trim(rangeBlock);
 
+                chosen_parameters.clear();
+                chosen_deltas.clear();
+
                 // parse JSON array
                 try
                 {
@@ -137,16 +140,21 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
 
                         DBG("Index: " << index << " Delta: " << delta);
 
-                        if (index >= 0 && index < parameterDisplays.size())
+                        // obtain param
+                        // auto param = dropZone->parameters[index];
+
+                        if (index >= 0 && index < dropZone->parameters.size())
                         {
-                            auto* display = parameterDisplays[index];
-                            display->applyDelta(delta);
+                            chosen_parameters.add(dropZone->parameters[index]); // Load parameters chosen by LLM
+                            chosen_deltas.add(delta);
+
                         }
                         else
                         {
                             DBG("Invalid parameter index: " << index);
                         }
                     }
+
                 }
                 catch (std::exception& e)
                 {
@@ -154,6 +162,7 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
                 }
             }
 
+            resized();
             return plainText; // return the suggestion text only
         }
 

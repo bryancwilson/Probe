@@ -60,33 +60,61 @@ void ChainBuilderAudioProcessorEditor::showText()
 void ChainBuilderAudioProcessorEditor::display_params(juce::Rectangle<int> boundsToUse)
 {
     // =============== Display Parameters ===================
+
+    // Live constants for layout tuning
+    //int maxVisibleParams = JUCE_LIVE_CONSTANT(9);
+    //float padding = JUCE_LIVE_CONSTANT(5.0f);
+    //float rowSpacing = JUCE_LIVE_CONSTANT(8.0f);
+    //float columnSpacing = JUCE_LIVE_CONSTANT(17.0f);
+    //int columns = JUCE_LIVE_CONSTANT(2);
+    
+    int maxVisibleParams = 9;
+    float padding = 5.0f;
+    float rowSpacing = 8.0f;
+    float columnSpacing = 17.0f;
+    int columns = 2;
+
     if (audioProcessor.hostedPlugin != nullptr && dropZone->params_loaded)
     {
-        if (!loaded_params)
+        if (chosen_parameters.size() != 0)
         {
-            for (auto* param : dropZone->parameters)
+            for (auto* param : chosen_parameters)
             {
-                auto* display = new ParameterDisplay(param);
+                 auto* display = new ParameterDisplay(param);
                 parameterDisplays.add(display);
                 addAndMakeVisible(display);
             }
             loaded_params = true;
         }
-
-        auto bounds = boundsToUse.reduced(10).toFloat();  // slight padding
-        int columns = 1;  // vertical stack
-        int rows = std::min<int>(9, parameterDisplays.size());  // limit to 9
-
-        float rowSpacing = 8.0f;
-        float rowHeight = (bounds.getHeight() - (rows - 1) * rowSpacing) / rows;
-        float colWidth = bounds.getWidth();
-
-        for (int i = 0; i < rows; ++i)
+        else
         {
-            float x = bounds.getX();
-            float y = bounds.getY() + i * (rowHeight + rowSpacing);
+            return;
+        }
+
+        auto bounds = boundsToUse.reduced(padding).toFloat();
+        int totalParams = std::min<int>(maxVisibleParams, chosen_parameters.size());
+
+        // Clamp columns to at least 1
+        int actualColumns = columns;
+        int rows = (int)std::ceil(totalParams / (float)actualColumns);
+
+        float totalColumnSpacing = (actualColumns - 1) * columnSpacing;
+        float colWidth = (bounds.getWidth() - totalColumnSpacing) / actualColumns;
+
+        float totalRowSpacing = (rows - 1) * rowSpacing;
+        float rowHeight = (bounds.getHeight() - totalRowSpacing) / rows;
+
+        for (int i = 0; i < totalParams; ++i)
+        {
+            int col = i % actualColumns;
+            int row = i / actualColumns;
+
+            float x = bounds.getX() + col * (colWidth + columnSpacing);
+            float y = bounds.getY() + row * (rowHeight + rowSpacing);
 
             parameterDisplays[i]->setBounds(x, y, colWidth, rowHeight);
+            parameterDisplays[i]->applyDelta(chosen_deltas[i]);
+
         }
     }
 }
@@ -219,19 +247,22 @@ void ParameterDisplay::resized()
 
 void ParameterDisplay::applyDelta(float delta)
 {
-    if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(parameter))
-    {
-        float current = floatParam->get();
-        float target = std::clamp(current + delta, floatParam->range.start, floatParam->range.end);
-        setTargetValue(target);
-    }
+
+    setTargetValue(delta);
+    
 }
 
 void ParameterDisplay::timerCallback()
 {
     if (parameter != nullptr)
     {
-        float val = parameter->getValue();
+        auto* floatParam = dynamic_cast<juce::AudioParameterInt*>(parameter);
+        float val = 0.f;
+        if (floatParam != nullptr)
+        {
+            // Get the current *actual* value
+            val = floatParam->get();  // <- This is public and safe
+        }
         juce::String units;
 
         if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(parameter))

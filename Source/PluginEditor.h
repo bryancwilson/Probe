@@ -85,6 +85,10 @@ public:
     // Display
     void display_params(juce::Rectangle<int> boundsToUse);
     void testParameterDisplayOffsets();
+    int hostedPlugin_height;
+    int hostedPlugin_width;
+    juce::Array<juce::AudioProcessorParameter*> chosen_parameters; // Parameters chosen by LLM
+    juce::Array<float> chosen_deltas;
 
     // Slidebar
     bool sidebarVisible = false;
