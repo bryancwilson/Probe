@@ -102,15 +102,15 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
             std::string generatedText = j["response"];
 
             // --- find the RANGE block ---
-            std::string plainText = generatedText;
+            std::string aiResponse = generatedText;
             std::string rangeBlock;
 
             size_t rangePos = generatedText.find("RANGE:");
             if (rangePos != std::string::npos)
             {
                 // split into text + range JSON
-                plainText = generatedText.substr(0, rangePos);
-                creative_response.setText(plainText, juce::dontSendNotification);
+                aiResponse = generatedText.substr(0, rangePos);
+                creative_response.setText(aiResponse, juce::dontSendNotification);
                 
                 rangeBlock = generatedText.substr(rangePos + 6); // skip "RANGE:"
 
@@ -136,7 +136,9 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
                     for (auto& item : rangeJson)
                     {
                         int index = item.value("parameter_index", -1);
-                        float delta = item.value("target_delta", 0.0f);
+                        
+                        std::string targetStr = item.value("target", "0.0");
+                        float delta = std::stof(targetStr);  // handles "+5.5 dB" correctly
 
                         DBG("Index: " << index << " Delta: " << delta);
 
@@ -163,7 +165,7 @@ std::string ChainBuilderAudioProcessorEditor::prompt_gen()
             }
 
             resized();
-            return plainText; // return the suggestion text only
+            return aiResponse; // return the suggestion text only
         }
 
         else

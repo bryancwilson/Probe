@@ -77,10 +77,11 @@ public:
     void set_textbox(int id);
     void handleTextInput(int id);
 
-    // Branding Colours
+    // Branding
     uint32_t color_1 = 0xff443627;
     uint32_t color_2 = 0xffd98324;
     uint32_t color_4 = 0xfff2f6d0;
+    juce::String fontName = "Arial";
 
     // Display
     void display_params(juce::Rectangle<int> boundsToUse);
@@ -110,6 +111,10 @@ public:
 
     // Misc Functions
     int extract_min(int val1, int val2);
+    
+    // Dynamics
+    bool emptyDetParams = true;
+    juce::Label changeParams;
 
 private:
     // This reference is provided as a quick way for your editor to

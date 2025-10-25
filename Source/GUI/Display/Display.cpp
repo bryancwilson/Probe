@@ -13,16 +13,19 @@ void ChainBuilderAudioProcessorEditor::initWindowSize_Editor()
     int x = r.getWidth();
 
     auto width = 0;
+    auto width_a = 0;
 
     if (r.getWidth() <= 1920)
     {
         // small screen size
         width = x * 0.5;
+        width_a = x * 0.4;
     }
     else
     {
         // large screen size
         width = x * 0.25;
+        width_a = x * 0.15;
     }
 
     auto height = width * 0.5;
@@ -32,7 +35,7 @@ void ChainBuilderAudioProcessorEditor::initWindowSize_Editor()
     // AudioProcessorEditor::setResizeLimits(width * 1.5f, height * 1.5f, width * 2.5f, height * 2.5f);
     // AudioProcessorEditor::getConstrainer()->setFixedAspectRatio(2.0);
 
-    setSize(width * 1.5, height * 1.5);
+    setSize(width_a * 1.5, height * 1.5);
 }
 
 void ChainBuilderAudioProcessorEditor::showText()
@@ -68,7 +71,7 @@ void ChainBuilderAudioProcessorEditor::display_params(juce::Rectangle<int> bound
     //float columnSpacing = JUCE_LIVE_CONSTANT(17.0f);
     //int columns = JUCE_LIVE_CONSTANT(2);
     
-    int maxVisibleParams = 9;
+    int maxVisibleParams = 8;
     float padding = 5.0f;
     float rowSpacing = 8.0f;
     float columnSpacing = 17.0f;
@@ -96,7 +99,7 @@ void ChainBuilderAudioProcessorEditor::display_params(juce::Rectangle<int> bound
 
         // Clamp columns to at least 1
         int actualColumns = columns;
-        int rows = (int)std::ceil(totalParams / (float)actualColumns);
+        int rows = (int)std::ceil(maxVisibleParams / (float)actualColumns);
 
         float totalColumnSpacing = (actualColumns - 1) * columnSpacing;
         float colWidth = (bounds.getWidth() - totalColumnSpacing) / actualColumns;
@@ -256,28 +259,18 @@ void ParameterDisplay::timerCallback()
 {
     if (parameter != nullptr)
     {
-        auto* floatParam = dynamic_cast<juce::AudioParameterInt*>(parameter);
-        float val = 0.f;
-        if (floatParam != nullptr)
-        {
-            // Get the current *actual* value
-            val = floatParam->get();  // <- This is public and safe
-        }
-        juce::String units;
-
-        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(parameter))
-        {
-            val = floatParam->get();
-            units = floatParam->label;
-        }
-
+        // Find current value of parameter
+        float normCurVal = parameter->getValue();
+        juce::String unnormCurVal = parameter->getText(normCurVal, 100);
+        
         // Show current value
-        valueLabel.setText(juce::String(val, 2) + " " + units, juce::dontSendNotification);
-
+        valueLabel.setText(unnormCurVal + " ", juce::dontSendNotification);
+        
         // Show offset if target exists
+        // 3 + 1 = 4
         if (targetValue.has_value())
         {
-            float diff = val - targetValue.value();
+            float diff = targetValue.value() - unnormCurVal.getFloatValue();
             if (std::abs(diff) > 0.01f)
                 offsetLabel.setText((diff > 0 ? "+" : "") + juce::String(diff, 2), juce::dontSendNotification);
             else
@@ -573,7 +566,8 @@ void PluginDropZone::parameterValueChanged(int parameterIndex, float newValue)
     {
         auto* param = parameters[parameterIndex];
         changedParameters[parameterIndex] = { param->getName(100), param->getText(newValue, 100)}; // Save Parameters Index
-       
+        
+        hostEditor.emptyDetParams = false;
     }
 }
 

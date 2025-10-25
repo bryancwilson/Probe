@@ -49,12 +49,10 @@ void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
     // display_params();
     // testParameterDisplayOffsets();
 
-    set_textbox(4);
-
     // Position and show your drop zone
     dropZone->setBounds (0, 0, getWidth() * 0.2f, getHeight() - 80);
     addAndMakeVisible (dropZone);
-
+    
     resized();
 }
 
@@ -99,8 +97,6 @@ void ChainBuilderAudioProcessorEditor::resized()
         auto sidebarArea = sidebar.reduced(padding);
         auto currentY = sidebarArea.getY();
 
-        juce::String fontName = "Arial";
-
         // --- Translate Header ---
         Translate.setFont(juce::Font(fontName, 16.0f, juce::Font::bold));
         Translate.setText("Translate", juce::dontSendNotification);
@@ -120,16 +116,15 @@ void ChainBuilderAudioProcessorEditor::resized()
         );
         display_params(paramDisplayArea);
         // testParameterDisplayOffsets();
-        currentY += (paramAreaHeight + sectionSpacing + 60.f);
+        currentY += (paramAreaHeight + sectionSpacing + 100.f);
 
         // --- Creative Response Header ---
         creative_response.setFont(juce::Font(fontName, 15.0f, juce::Font::plain));
-        creative_response.setText("AI Response:", juce::dontSendNotification);
         creative_response.setColour(juce::Label::textColourId, juce::Colours::white);
-        creative_response.setJustificationType(juce::Justification::centredLeft);
-        creative_response.setBounds(sidebarArea.getX(), currentY, sidebarArea.getWidth(), labelHeight);
+        creative_response.setJustificationType(juce::Justification::centred);
+        creative_response.setBounds(sidebarArea.getX(), currentY, sidebarArea.getWidth(), labelHeight * 4);
         addAndMakeVisible(creative_response);
-        currentY += (labelHeight + sectionSpacing + 40.f);
+        currentY += (labelHeight + sectionSpacing + 60.f);
 
         // --- Text Box ---
         textBox.setBounds(
@@ -138,64 +133,62 @@ void ChainBuilderAudioProcessorEditor::resized()
             sidebarArea.getWidth(),
             textBoxHeight
         );
-        textBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black);
-        textBox.setColour(juce::TextEditor::textColourId, juce::Colours::white);
-        textBox.setColour(juce::TextEditor::outlineColourId, juce::Colour(color_4));
-        textBox.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(color_2));
-        textBox.setWantsKeyboardFocus(true);
-        textBox.setInterceptsMouseClicks(true, true);
-        textBox.grabKeyboardFocus();
+        
+        // ----- Change Parameters Message -------
+        changeParams.setBounds(sidebarArea.getX(),
+                               currentY,
+                               sidebarArea.getWidth(),
+                               labelHeight * 4);
 
-        addAndMakeVisible(textBox);
-
+        set_textbox(4);
 
         return;
     }
 
     // =========== Display Section Titles =================
-    int labelWidth = 100;   // desired width of the label
-    int labelHeight = 25;   // desired height
-    int creativeWidth = 200;   // desired width of the label
-    int creativeHeight = 100;
-    
-    int x_translate = (area.getWidth() - labelWidth) / 2.8f;  // center horizontally
-    int x_discuss = (area.getWidth() - labelWidth) / 1.3f;  // center horizontally
-    int y = 10;  // small top margin
-
-    std::string font = "Arial";
-    Translate.setFont(juce::Font(font, 15.0f, 0));
-    Translate.setText("Translate", juce::dontSendNotification);
-    Translate.setColour(juce::Label::textColourId, juce::Colours::white);
-    Translate.setJustificationType(juce::Justification::centred);
-    Translate.setBounds(x_translate, y, labelWidth, labelHeight);
-    addAndMakeVisible(Translate);
-
-    Discuss.setFont(juce::Font(font, 15.0f, 0));
-    Discuss.setText("Discuss", juce::dontSendNotification);
-    Discuss.setColour(juce::Label::textColourId, juce::Colours::white);
-    Discuss.setJustificationType(juce::Justification::centred);
-    Discuss.setBounds(x_discuss, y, labelWidth, labelHeight);
-    addAndMakeVisible(Discuss);
-    
-    // After you set Translate bounds
-    auto translateBounds = Translate.getBounds();
-    int x_creative_text = translateBounds.getCentreX() - creativeWidth / 2;
-    
-    creative_response.setFont(juce::Font(font, 15.0f, 0));
-    creative_response.setColour(juce::Label::textColourId, juce::Colours::white);
-    creative_response.setJustificationType(juce::Justification::centred);
-    creative_response.setBounds(x_creative_text, y + 300, creativeWidth, creativeHeight);
-    addAndMakeVisible(creative_response);
-
-    // ================ Textboxes ======================
-    int componentWidth = 208;
-    int x_component = translateBounds.getCentreX() - componentWidth / 2;
-
-    textBox.setBounds(x_component, getHeight() * 0.80, componentWidth, 30);
-    textBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black);
-    textBox.setColour(juce::CaretComponent::caretColourId, juce::Colours::white);
-    textBox.setColour(juce::TextEditor::outlineColourId, juce::Colour(color_4));
-    textBox.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(color_2));
+//    int labelWidth = 100;   // desired width of the label
+//    int labelHeight = 25;   // desired height
+//    int creativeWidth = 200;   // desired width of the label
+//    int creativeHeight = 100;
+//    
+//    int x_translate = (area.getWidth() - labelWidth) / 2.8f;  // center horizontally
+//    int x_discuss = (area.getWidth() - labelWidth) / 1.3f;  // center horizontally
+//    int y = 10;  // small top margin
+//
+//    std::string font = "Arial";
+//    Translate.setFont(juce::Font(font, 15.0f, 0));
+//    Translate.setText("Translate", juce::dontSendNotification);
+//    Translate.setColour(juce::Label::textColourId, juce::Colours::white);
+//    Translate.setJustificationType(juce::Justification::centred);
+//    Translate.setBounds(x_translate, y, labelWidth, labelHeight);
+//    addAndMakeVisible(Translate);
+//
+//    Discuss.setFont(juce::Font(font, 15.0f, 0));
+//    Discuss.setText("Discuss", juce::dontSendNotification);
+//    Discuss.setColour(juce::Label::textColourId, juce::Colours::white);
+//    Discuss.setJustificationType(juce::Justification::centred);
+//    Discuss.setBounds(x_discuss, y, labelWidth, labelHeight);
+//    addAndMakeVisible(Discuss);
+//    
+//    // After you set Translate bounds
+//    auto translateBounds = Translate.getBounds();
+//    int x_creative_text = translateBounds.getCentreX() - creativeWidth / 2;
+//    
+//    creative_response.setFont(juce::Font(font, 15.0f, 0));
+//    creative_response.setColour(juce::Label::textColourId, juce::Colours::white);
+//    creative_response.setJustificationType(juce::Justification::centred);
+//    creative_response.setBounds(x_creative_text, y + 300, creativeWidth, creativeHeight);
+//    addAndMakeVisible(creative_response);
+//
+//    // ================ Textboxes ======================
+//    int componentWidth = 208;
+//    int x_component = translateBounds.getCentreX() - componentWidth / 2;
+//
+//    textBox.setBounds(x_component, getHeight() * 0.80, componentWidth, 30);
+//    textBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black);
+//    textBox.setColour(juce::CaretComponent::caretColourId, juce::Colours::white);
+//    textBox.setColour(juce::TextEditor::outlineColourId, juce::Colour(color_4));
+//    textBox.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(color_2));
     
     // ================ AI Creative Response ===================
    
