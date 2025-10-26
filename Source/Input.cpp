@@ -4,37 +4,11 @@ using json = nlohmann::json;
 
 void ChainBuilderAudioProcessorEditor::set_textbox(int id)
 {
-    // Set up the text editor
-    textBox.setMultiLine(false);
-    textBox.setReturnKeyStartsNewLine(false);
-    textBox.setReadOnly(false);
-    textBox.setScrollbarsShown(false);
-    textBox.setTextToShowWhenEmpty("Type here then click enter...", juce::Colours::grey);
-
 
     // textBox.setText("Type here...");
     textBox.onReturnKey = [this, id] { handleTextInput(id); }; // Handle when Enter is pressed
 
-    if (!emptyDetParams)
-    {
-        // Do not display text box to query LLM until Host Has Detected Parameters
-        textBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black);
-        textBox.setColour(juce::TextEditor::textColourId, juce::Colours::white);
-        textBox.setColour(juce::TextEditor::outlineColourId, juce::Colour(color_4));
-        textBox.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(color_2));
-        textBox.setWantsKeyboardFocus(true);
-        textBox.setInterceptsMouseClicks(true, true);
-        
-        addAndMakeVisible(textBox);
-        textBox.grabKeyboardFocus();
-    }
-    else
-    {
-        
-        changeParams.setFont(juce::Font(fontName, 15.0f, juce::Font::plain));
-        changeParams.setColour(juce::Label::textColourId, juce::Colours::white);
-        changeParams.setJustificationType(juce::Justification::centred);
-    }
+    
 
 }
 

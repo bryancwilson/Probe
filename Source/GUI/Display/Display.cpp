@@ -19,13 +19,13 @@ void ChainBuilderAudioProcessorEditor::initWindowSize_Editor()
     {
         // small screen size
         width = x * 0.5;
-        width_a = x * 0.4;
+        width_a = x * 0.5;
     }
     else
     {
         // large screen size
         width = x * 0.25;
-        width_a = x * 0.15;
+        width_a = x * 0.25;
     }
 
     auto height = width * 0.5;
@@ -422,13 +422,11 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
                 // Animate appearance
                 static juce::ComponentAnimator animator;
 
-                // Target bounds: left side of Probe window (minus sidebar)
-                int sidebarWidth = 300;
-                auto fullArea = getLocalBounds();
-                auto pluginArea = fullArea.removeFromRight(sidebarWidth);
+                // Target bounds
+                auto pluginArea = hostEditor.getLocalBounds();
 
                 // Animate from collapsed to full height
-                ed->setBounds(pluginArea.withHeight(1));
+                ed->setBounds(pluginArea.withY(0).withHeight(1));
                 animator.animateComponent(editor.get(),
                     pluginArea,
                     1.0f,   // final alpha
@@ -437,6 +435,17 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
                     0.0f,
                     0.0f);
 
+                // Resize the Host Editor Height to Fit Hosted Plugin
+                int requiredHeight = pluginArea.getHeight();
+                int requiredWidth = pluginArea.getWidth();
+
+                auto hostEditorBounds = hostEditor.getBounds();
+                hostEditor.setBounds(
+                    hostEditorBounds.withHeight(requiredHeight)
+                    .withWidth(requiredWidth)
+                );
+
+                // Extend the Side Panel
                 hostEditor.extend_panel = true;
                 hostEditor.togglePromptSidebar(hostEditor.extend_panel);
             }

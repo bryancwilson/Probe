@@ -116,7 +116,7 @@ void ChainBuilderAudioProcessorEditor::resized()
         );
         display_params(paramDisplayArea);
         // testParameterDisplayOffsets();
-        currentY += (paramAreaHeight + sectionSpacing + 100.f);
+        currentY += (paramAreaHeight + sectionSpacing);
 
         // --- Creative Response Header ---
         creative_response.setFont(juce::Font(fontName, 15.0f, juce::Font::plain));
@@ -124,7 +124,7 @@ void ChainBuilderAudioProcessorEditor::resized()
         creative_response.setJustificationType(juce::Justification::centred);
         creative_response.setBounds(sidebarArea.getX(), currentY, sidebarArea.getWidth(), labelHeight * 4);
         addAndMakeVisible(creative_response);
-        currentY += (labelHeight + sectionSpacing + 60.f);
+        currentY += (labelHeight + sectionSpacing + 30.f);
 
         // --- Text Box ---
         textBox.setBounds(
@@ -133,12 +133,28 @@ void ChainBuilderAudioProcessorEditor::resized()
             sidebarArea.getWidth(),
             textBoxHeight
         );
-        
+
+        // Do not display text box to query LLM until Host Has Detected Parameters
+        textBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black);
+        textBox.setColour(juce::TextEditor::textColourId, juce::Colours::white);
+        textBox.setColour(juce::TextEditor::outlineColourId, juce::Colour(color_4));
+        textBox.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(color_2));
+        textBox.setMultiLine(false);
+        textBox.setReturnKeyStartsNewLine(false);
+        textBox.setReadOnly(false);
+        textBox.setScrollbarsShown(false);
+        textBox.setTextToShowWhenEmpty("Type here then click enter...", juce::Colours::grey);
+        textBox.setWantsKeyboardFocus(true);
+        textBox.setInterceptsMouseClicks(true, true);
+
+        addAndMakeVisible(textBox);
+        textBox.grabKeyboardFocus();
+
         // ----- Change Parameters Message -------
-        changeParams.setBounds(sidebarArea.getX(),
-                               currentY,
-                               sidebarArea.getWidth(),
-                               labelHeight * 4);
+        //changeParams.setBounds(sidebarArea.getX(),
+        //                       currentY,
+        //                       sidebarArea.getWidth(),
+        //                       labelHeight * 4);
 
         set_textbox(4);
 
