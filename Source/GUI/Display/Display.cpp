@@ -1,4 +1,3 @@
-
 #include "../../PluginEditor.h"
 #include "Display.h"
 #include "../../Metrics/Metrics.h"
@@ -302,7 +301,7 @@ PluginDropZone::~PluginDropZone() {
             auto& params = pluginInstance->getParameters();
             for (auto* p : params)
                 p->removeListener(this);
-        }   
+        }
 }
 
 void PluginDropZone::timerCallback()
@@ -316,28 +315,7 @@ void PluginDropZone::timerCallback()
 
 void PluginDropZone::paint(juce::Graphics& g)
 {
-
-    // Slide amount
-    float offsetX = 0.0f; // how far to move everything right
-
-    float centerX = getWidth() * .5f + offsetX;
-
-    // Create path for vertical line
-    juce::Path linePath;
-    linePath.startNewSubPath(centerX, 0.0f);
-    linePath.lineTo(centerX, getHeight());
-    juce::PathStrokeType stroke(2.0f);
-
-    // Dashed line
-    float dashLengths[] = { 6.0f, 6.0f };
-    juce::Path dashed;
-    stroke.createDashedStroke(dashed, linePath, dashLengths, 2,
-        juce::AffineTransform::translation(0.0f, dashPhase),
-        3.0f);
-
-    g.setColour(juce::Colours::white);
-    g.fillPath(dashed);
-
+    juce::Point<float> boxCenter = juce::Point<float>(getWidth() / 2.0f + boxCenterShift.x, getHeight() / 2.0f + boxCenterShift.y);
     // ----- Draw plugin box -----
     if (selectedPluginName.isNotEmpty())
     {
@@ -348,38 +326,33 @@ void PluginDropZone::paint(juce::Graphics& g)
         float paddingX = 15.0f;
         float paddingY = 6.0f;
 
-        juce::Rectangle<float> box(
-            (getWidth() - (textWidth + 2.0f * paddingX)) / 2.0f + offsetX, // slide box
-            (getHeight() - (textHeight + 2.0f * paddingY)) / 2.0f,
-            textWidth + 2.0f * paddingX,
-            textHeight + 2.0f * paddingY
-        );
+        float boxWidth = textWidth + 2.0f * paddingX;
+        float boxHeight = textHeight + 2.0f * paddingY;
+        float boxX = boxCenter.x - boxWidth / 2.0f;
+        float boxY = boxCenter.y - boxHeight / 2.0f;
 
-        g.setColour(juce::Colours::darkgrey.withAlpha(0.7f));
-        g.fillRoundedRectangle(box, 8.0f);
+        loadPluginBox = juce::Rectangle<float>(boxX, boxY, boxWidth, boxHeight);
 
         g.setColour(juce::Colours::white);
-        g.drawRoundedRectangle(box, 8.0f, 2.0f);
-
-        g.drawText(selectedPluginName, box.toNearestInt(), juce::Justification::centred);
+        g.drawRoundedRectangle(loadPluginBox, 8.0f, 2.0f);
+        g.drawText(selectedPluginName, loadPluginBox.toNearestInt(), juce::Justification::centred);
     }
     else
     {
-        // Draw "+" text inside a centered box that also slides
-        juce::Rectangle<float> plusBox(
-            getWidth() / 2.0f - 15.0f + offsetX,
-            getHeight() / 2.0f - 15.0f,
-            30.0f,
-            30.0f
-        );
+        float boxWidth = 100.0f;
+        float boxHeight = 50.0f;
+        float boxX = boxCenter.x - boxWidth / 2.0f;
+        float boxY = boxCenter.y - boxHeight / 2.0f;
+
+        loadPluginBox = juce::Rectangle<float>(boxX, boxY, boxWidth, boxHeight);
 
         g.setColour(juce::Colours::white);
         g.setFont(16.0f);
-        g.drawText("+", plusBox.toNearestInt(), juce::Justification::centred);
+        g.drawText("Load Plugin", loadPluginBox.toNearestInt(), juce::Justification::centred);
+        g.setColour(juce::Colours::white);
+        g.drawRoundedRectangle(loadPluginBox, 8.0f, 2.0f);
     }
 }
-
-
 
 
 void PluginDropZone::resized()
@@ -388,21 +361,15 @@ void PluginDropZone::resized()
 }
 
 
-// Check if click is on plus
-bool PluginDropZone::isClickOnPlus(const juce::Point<int>& pos)
+
+bool PluginDropZone::isClickOnPlus(const juce::Rectangle<float>& loadPluginBox, const juce::Point<int>& pos)
 {
-    auto area = getLocalBounds();
-    float centerX = area.getWidth() / 2.0f;
-    float centerY = area.getHeight() / 2.0f;
-    float threshold = 15.0f;
-    return (std::abs(pos.x - centerX) <= threshold && std::abs(pos.y - centerY) <= threshold);
+    return loadPluginBox.contains((float)pos.x, (float)pos.y);
 }
 
 // Mouse click handler
 void PluginDropZone::mouseDown(const juce::MouseEvent& event)
 {
-    if (!isClickOnPlus(event.getPosition())) 
-        return;
 
     // If a plugin is already loaded -> open its GUI
     if (audioProcessor.hostedPlugin != nullptr)
@@ -482,90 +449,95 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
 
         params_loaded = true;
     }
+    else{
+        // was click on load plugin box?
+        if (!isClickOnPlus(loadPluginBox, event.getPosition()))
+            return;
+        
+        juce::FileSearchPath searchPaths;
+        #if JUCE_WINDOWS
+            searchPaths.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
+            searchPaths.add(juce::File("C:\\Program Files\\Steinberg\\VST3"));
 
-    juce::FileSearchPath searchPaths;
+        #elif JUCE_MAC
+            // Typical system-wide VST3 location on macOS
+            searchPaths.add(juce::File("/Library/Audio/Plug-Ins/VST3"));
+            // User-specific location (optional)
+            searchPaths.add(juce::File("~/Library/Audio/Plug-Ins/VST3"));
 
-    #if JUCE_WINDOWS
-        searchPaths.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
-        searchPaths.add(juce::File("C:\\Program Files\\Steinberg\\VST3"));
+        #elif JUCE_LINUX
+            // Common Linux locations
+            searchPaths.add(juce::File("/usr/lib/vst3"));
+            searchPaths.add(juce::File("/usr/local/lib/vst3"));
+            // Add more if your distro uses different paths
+        #endif
 
-    #elif JUCE_MAC
-        // Typical system-wide VST3 location on macOS
-        searchPaths.add(juce::File("/Library/Audio/Plug-Ins/VST3"));
-        // User-specific location (optional)
-        searchPaths.add(juce::File("~/Library/Audio/Plug-Ins/VST3"));
+        
+        // Path to store scan state
+        juce::File deadMansPedal = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+            .getChildFile("pluginScanState.tmp");
 
-    #elif JUCE_LINUX
-        // Common Linux locations
-        searchPaths.add(juce::File("/usr/lib/vst3"));
-        searchPaths.add(juce::File("/usr/local/lib/vst3"));
-        // Add more if your distro uses different paths
-    #endif
+        // Scan VST3 plugins (or cached scan)
+        juce::PluginDirectoryScanner scanner(pluginList, pluginFormat, searchPaths, true, deadMansPedal, false);
+        juce::String pluginNames = "";
 
-    
-    // Path to store scan state
-    juce::File deadMansPedal = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-        .getChildFile("pluginScanState.tmp");
+        bool finished = false;
+        while (!finished)
+            finished = !scanner.scanNextFile(true, pluginNames);
 
-    // Scan VST3 plugins (or cached scan)
-    juce::PluginDirectoryScanner scanner(pluginList, pluginFormat, searchPaths, true, deadMansPedal, false);
-    juce::String pluginNames = "";
+        // Build popup menu
+        juce::PopupMenu menu;
+        auto pluginTypes = pluginList.getTypes();
 
-    bool finished = false;
-    while (!finished)
-        finished = !scanner.scanNextFile(true, pluginNames);
+        for (int i = 0; i < pluginTypes.size(); ++i)
+        {
+            menu.addItem(i + 1, pluginTypes[i].name);
+        }
 
-    // Build popup menu
-    juce::PopupMenu menu;
-    auto pluginTypes = pluginList.getTypes();
+        // Show menu asynchronously, handle selection in lambda
 
-    for (int i = 0; i < pluginTypes.size(); ++i)
-    {
-        menu.addItem(i + 1, pluginTypes[i].name);
+        menu.showMenuAsync(juce::PopupMenu::Options(),
+            [this, pluginTypes](int result)
+            {
+                if (result > 0)
+                {
+                    auto selectedPlugin = pluginTypes[result - 1];
+                    DBG("User chose plugin: " << selectedPlugin.name);
+
+                    // Example: create plugin instance
+                    juce::String errorMessage;
+                    auto instance = formatManager.createPluginInstance(
+                        selectedPlugin,
+                        audioProcessor.getSampleRate(),
+                        audioProcessor.getBlockSize(),
+                        errorMessage
+                    );
+
+                    if (instance == nullptr)
+                    {
+                        DBG("Failed to load plugin: " << errorMessage);
+                    }
+                    else
+                    {
+                        DBG("Plugin loaded successfully!");
+
+                        audioProcessor.hostedPlugin = std::move(instance);
+
+                        // Set stereo input/output channel layout
+                        audioProcessor.hostedPlugin->setPlayConfigDetails(2, 2,
+                            audioProcessor.getSampleRate(),
+                            audioProcessor.getBlockSize());
+
+                        audioProcessor.hostedPlugin->prepareToPlay(audioProcessor.getSampleRate(), audioProcessor.getBlockSize());
+                        
+
+                        selectedPluginName = selectedPlugin.name;
+                        repaint();
+                    }
+                }
+            });
     }
 
-    // Show menu asynchronously, handle selection in lambda
-
-    menu.showMenuAsync(juce::PopupMenu::Options(),
-        [this, pluginTypes](int result)
-        {
-            if (result > 0)
-            {
-                auto selectedPlugin = pluginTypes[result - 1];
-                DBG("User chose plugin: " << selectedPlugin.name);
-
-                // Example: create plugin instance
-                juce::String errorMessage;
-                auto instance = formatManager.createPluginInstance(
-                    selectedPlugin,
-                    audioProcessor.getSampleRate(),
-                    audioProcessor.getBlockSize(),
-                    errorMessage
-                );
-
-                if (instance == nullptr)
-                {
-                    DBG("Failed to load plugin: " << errorMessage);
-                }
-                else
-                {
-                    DBG("Plugin loaded successfully!");
-
-                    audioProcessor.hostedPlugin = std::move(instance);
-
-                    // Set stereo input/output channel layout
-                    audioProcessor.hostedPlugin->setPlayConfigDetails(2, 2,
-                        audioProcessor.getSampleRate(),
-                        audioProcessor.getBlockSize());
-
-                    audioProcessor.hostedPlugin->prepareToPlay(audioProcessor.getSampleRate(), audioProcessor.getBlockSize());
-                    
-
-                    selectedPluginName = selectedPlugin.name;
-                    repaint();
-                }
-            }
-        });
 
 }
 
@@ -612,4 +584,8 @@ void PluginDropZone::itemDropped(const juce::DragAndDropTarget::SourceDetails& /
     DBG("Plugin dropped!");
     repaint();
 }
+
+
+
+
 

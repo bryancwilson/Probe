@@ -1,5 +1,3 @@
-
-
 #pragma once  // or use traditional include guards
 
 #include <JuceHeader.h>
@@ -43,7 +41,7 @@ public:
     bool params_loaded = false;
 private:
     void mouseDown(const juce::MouseEvent& event) override;
-    bool isClickOnPlus(const juce::Point<int>& pos);
+    bool isClickOnPlus(const juce::Rectangle<float>& loadPluginBox, const juce::Point<int>& pos);
 
     bool isDragOver = false;
     juce::VST3PluginFormat pluginFormat;
@@ -56,12 +54,16 @@ private:
     juce::TextButton sendButton;
     juce::Label outputLabel;
 
+    juce::Rectangle<float> loadPluginBox; // area for loading plugin
+    
     // Handle Plugin View
     std::unique_ptr<juce::AudioPluginInstance> pluginInstance;
     juce::String selectedPluginName;
 
     juce::AudioBuffer<float>* hostedPluginBuffer = nullptr; // pointer to buffer from hosted plugin
     void timerCallback() override;
+
+    juce::Point<float> boxCenterShift { 0.0f, 0.0f }; // Shift from center, can be set externally
 };
 
 // ===============================================================================================================

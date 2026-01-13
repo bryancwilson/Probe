@@ -50,8 +50,13 @@ void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
     // testParameterDisplayOffsets();
 
     // Position and show your drop zone
-    dropZone->setBounds (0, 0, getWidth() * 0.2f, getHeight() - 80);
+    dropZone->setBounds (0, 0, getWidth() * 0.25f, getHeight() - 80);
     addAndMakeVisible (dropZone);
+    
+    // make white right vertical boundary line on dropzone
+    g.setColour(juce::Colours::white);
+    float lineX = dropZone->getRight();
+    g.drawLine(lineX, 0.0f, lineX, getHeight(), 2.0f);
     
     resized();
 }
