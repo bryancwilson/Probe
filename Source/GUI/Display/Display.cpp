@@ -313,14 +313,42 @@ void PluginDropZone::timerCallback()
     if (dashPhase > 6.0f) // reset after one dash length
         dashPhase = 0.0f;
 
-    repaint();
+    float target = (hoveredPluginIndex >= 0) ? 1.0f : 0.0f;
+    // Color fade speeds
+    float speedIn = 0.07f;
+    float speedOut = 0.03f;
+    float speed = (target > hoverAnim) ? speedIn : speedOut;
+    bool needsRepaint = false;
+    if (std::abs(hoverAnim - target) > 0.01f) {
+        hoverAnim += (target - hoverAnim) * speed;
+        needsRepaint = true;
+    } else {
+        hoverAnim = target;
+    }
+    // Slide button animation speeds
+    float slideSpeedIn = 0.12f;
+    float slideSpeedOut = 0.06f;
+    float slideTarget = (hoveredPluginIndex >= 0) ? 1.0f : 0.0f;
+    float slideSpeed = (slideTarget > slideAnim) ? slideSpeedIn : slideSpeedOut;
+    if (std::abs(slideAnim - slideTarget) > 0.01f) {
+        slideAnim += (slideTarget - slideAnim) * slideSpeed;
+        needsRepaint = true;
+    } else {
+        slideAnim = slideTarget;
+    }
+    if (needsRepaint) {
+        repaint();
+    } else if (hoverAnim == 0.0f && slideAnim == 0.0f) {
+        stopTimer();
+        repaint();
+    }
 }
 
 void PluginDropZone::paint(juce::Graphics& g)
 {
     loadPluginBoxes.clear();
     int maxPlugins = 3;
-    int numBoxes = std::min(maxPlugins, selectedPluginNames.size() + 1);
+    int numBoxes = std::min(maxPlugins, (int)selectedPluginNames.size() + 1);
     float boxWidth = 100.0f;
     float boxHeight = 50.0f;
     float spacing = 20.0f;
@@ -333,13 +361,47 @@ void PluginDropZone::paint(juce::Graphics& g)
         float boxY = startY + i * (boxHeight + spacing);
         juce::Rectangle<float> box(boxX, boxY, boxWidth, boxHeight);
         loadPluginBoxes.add(box);
-        g.setColour(juce::Colours::white);
+        // Blend color if hovered
+        if (i == hoveredPluginIndex && hoverAnim > 0.01f)
+        {
+            juce::Colour base = juce::Colours::white;
+            juce::Colour hover = juce::Colours::orange;
+            juce::Colour blended = base.interpolatedWith(hover, hoverAnim * 0.5f);
+            g.setColour(blended);
+        }
+        else
+        {
+            g.setColour(juce::Colours::white);
+        }
+        
         g.setFont(16.0f);
         if (i < selectedPluginNames.size())
             g.drawText(selectedPluginNames[i], box.toNearestInt(), juce::Justification::centred);
         else
             g.drawText("Load Plugin", box.toNearestInt(), juce::Justification::centred);
         g.drawRoundedRectangle(box, 8.0f, 2.0f);
+        
+        // Draw sliding button if hovered
+        if (i == hoveredPluginIndex && slideAnim > 0.01f)
+        {
+            float btnW = 36.0f; // Skinnier button
+            float btnH = boxHeight; // Match plugin button height
+            float gap = 8.0f; // Space between plugin box and x button
+            float slideOffset = btnW * (1.0f - slideAnim);
+            juce::Rectangle<float> btnRect(
+                box.getRight() + gap + slideOffset,
+                box.getY(),
+                btnW,
+                btnH
+            );
+            // Match the color style of the plugin box (white outline, transparent fill)
+            g.setColour(juce::Colours::white.withAlpha(0.12f));
+            g.fillRoundedRectangle(btnRect, 8.0f);
+            g.setColour(juce::Colours::white);
+            g.setFont(24.0f);
+            g.drawText("x", btnRect, juce::Justification::centred);
+            g.drawRoundedRectangle(btnRect, 8.0f, 2.0f);
+        }
     }
 }
 
@@ -445,6 +507,38 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
             }
             break;
         }
+    }
+}
+
+void PluginDropZone::mouseMove(const juce::MouseEvent& event)
+{
+    int hovered = -1;
+    for (int i = 0; i < loadPluginBoxes.size(); ++i)
+    {
+        if (i < selectedPluginNames.size() && loadPluginBoxes[i].contains((float)event.x, (float)event.y))
+        {
+            hovered = i;
+            break;
+        }
+    }
+    if (hovered != hoveredPluginIndex)
+    {
+        hoveredPluginIndex = hovered;
+        startTimerHz(60);
+    }
+}
+
+void PluginDropZone::mouseEnter(const juce::MouseEvent& event)
+{
+    mouseMove(event);
+}
+
+void PluginDropZone::mouseExit(const juce::MouseEvent&)
+{
+    if (hoveredPluginIndex != -1)
+    {
+        hoveredPluginIndex = -1;
+        startTimerHz(60);
     }
 }
 

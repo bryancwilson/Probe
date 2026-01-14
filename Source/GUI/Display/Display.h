@@ -41,6 +41,10 @@ public:
     bool params_loaded = false;
 private:
     void mouseDown(const juce::MouseEvent& event) override;
+    void mouseEnter(const juce::MouseEvent& event) override;
+    void mouseMove(const juce::MouseEvent& event) override;
+    void mouseExit(const juce::MouseEvent& event) override;
+    
     bool isClickOnPlus(const juce::Rectangle<float>& loadPluginBox, const juce::Point<int>& pos);
 
     bool isDragOver = false;
@@ -55,14 +59,19 @@ private:
     juce::Label outputLabel;
 
     juce::Rectangle<float> loadPluginBox; // area for loading plugin
-    
+    juce::Array<juce::Rectangle<float>> loadPluginBoxes;
+    juce::StringArray selectedPluginNames;
+    int hoveredPluginIndex = -1;
+    float slideAnim = 0.0f;
+
     // Handle Plugin View
-    juce::OwnedArray<juce::AudioPluginInstance> pluginInstances; // up to 3 plugin instances
-    juce::StringArray selectedPluginNames; // up to 3 plugin names
-    juce::Array<juce::Rectangle<float>> loadPluginBoxes; // up to 3 plugin boxes
+    std::unique_ptr<juce::AudioPluginInstance> pluginInstance;
+    juce::String selectedPluginName;
 
     juce::AudioBuffer<float>* hostedPluginBuffer = nullptr; // pointer to buffer from hosted plugin
     void timerCallback() override;
+
+    float hoverAnim = 0.0f;
 };
 
 // ===============================================================================================================
