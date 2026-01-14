@@ -138,15 +138,11 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    // Set buffer to have correct number of channels
-    if (hostedPlugin != nullptr)
+    // Set buffer to have correct number of channels for first plugin (if any)
+    if (!pluginInstances.isEmpty())
     {
-        //DBG("============== Hosted Plugin Information");
-        //DBG("Plugin Input Channels: " << hostedPlugin->getTotalNumInputChannels());
-        //DBG("Plugin Output Channels: " << hostedPlugin->getTotalNumOutputChannels());
-        //DBG("Buffer Channels: " << buffer.getNumChannels());
-
-        buffer.setSize(hostedPlugin->getTotalNumInputChannels(), buffer.getNumSamples(), true, true, true);
+        auto* firstPlugin = pluginInstances[0];
+        buffer.setSize(firstPlugin->getTotalNumInputChannels(), buffer.getNumSamples(), true, true, true);
     }
 
     // Clear any output channels that don't contain input data
@@ -170,13 +166,14 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             }
         }
 
-        // 2. Pass through hosted EQ
-        if (hostedPlugin != nullptr)
+        // Pass through all loaded plugins in series
+        for (auto* plugin : pluginInstances)
         {
-            hostedPlugin->processBlock(buffer, midiMessages);
+            if (plugin != nullptr)
+                plugin->processBlock(buffer, midiMessages);
         }
 
-        // 3. Analyze *post-EQ* signal (first channel is fine for FFT)
+        // Analyze *post-plugin* signal (first channel is fine for FFT)
         if (buffer.getNumChannels() > 0)
         {
             for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
@@ -191,13 +188,8 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     if (ch == 0)
                         pushNextSampleIntoFifo(channelData[i], buffer);
                 }
-
-                // DBG("Post-plugin buffer energy: channel " << ch << " = " << chSum);
             }
         }
-
-
-
     }
     // Live From DAW
     else if (buffer.getNumChannels() > 0)
@@ -208,9 +200,6 @@ void ChainBuilderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             pushNextSampleIntoFifo(channelData[i], buffer);
         }
     }
-
-
-
 }
 
 void ChainBuilderAudioProcessor::pushNextSampleIntoFifo(float sample, juce::AudioBuffer<float>& buffer) noexcept

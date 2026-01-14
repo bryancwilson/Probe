@@ -57,13 +57,12 @@ private:
     juce::Rectangle<float> loadPluginBox; // area for loading plugin
     
     // Handle Plugin View
-    std::unique_ptr<juce::AudioPluginInstance> pluginInstance;
-    juce::String selectedPluginName;
+    juce::OwnedArray<juce::AudioPluginInstance> pluginInstances; // up to 3 plugin instances
+    juce::StringArray selectedPluginNames; // up to 3 plugin names
+    juce::Array<juce::Rectangle<float>> loadPluginBoxes; // up to 3 plugin boxes
 
     juce::AudioBuffer<float>* hostedPluginBuffer = nullptr; // pointer to buffer from hosted plugin
     void timerCallback() override;
-
-    juce::Point<float> boxCenterShift { 0.0f, 0.0f }; // Shift from center, can be set externally
 };
 
 // ===============================================================================================================

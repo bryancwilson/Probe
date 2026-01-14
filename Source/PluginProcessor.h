@@ -57,6 +57,7 @@ public:
 
     std::unique_ptr<juce::AudioPluginInstance> hostedPlugin = nullptr;
     bool pluginPrepared = false;
+    juce::OwnedArray<juce::AudioPluginInstance> pluginInstances; // up to 3 plugin instances for audio processing
 
     enum
     {
