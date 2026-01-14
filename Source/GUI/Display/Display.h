@@ -51,7 +51,9 @@ private:
     
     // For Sliding Buttons
     bool in_vertical_bounds = false;
-    
+    enum class SlideState { Hidden, AnimatingIn, Shown, AnimatingOut }; // Define the possible animation states for the slide button
+    SlideState slideState = SlideState::Hidden; // Static variable to persist state across timerCallback calls
+
     juce::VST3PluginFormat pluginFormat;
     juce::AudioPluginFormatManager formatManager;
     juce::KnownPluginList pluginList;
@@ -66,6 +68,7 @@ private:
     juce::Array<juce::Rectangle<float>> loadPluginBoxes;
     juce::StringArray selectedPluginNames;
     int hoveredPluginIndex = -1;
+    int previouslyHoveredPluginIndex = -1;
     float slideAnim = 0.0f;
 
     // Handle Plugin View
@@ -77,6 +80,8 @@ private:
 
     float hoverAnim = 0.0f;
 
+    bool closed_clicked = false;
+    
     juce::Array<juce::Rectangle<float>> xButtonRects;
     juce::Array<juce::Rectangle<float>> bypassButtonRects;
 };
