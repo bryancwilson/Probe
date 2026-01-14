@@ -181,6 +181,11 @@ void ChainBuilderAudioProcessorEditor::display_metrics()
     // addAndMakeVisible(metrics_text);
 }
 
+//void ChainBuilderAudioProcessorEditor::timerCallback()
+//{
+//    
+//}
+
 // CLASSES
 class NonFocusableDialog : public juce::DialogWindow
 {
@@ -387,6 +392,14 @@ void PluginDropZone::timerCallback()
                 }
             }
             break;
+        case SlideState::AnimatingAway:
+            
+            float slideTarget = 1.0f; // fully shown
+            float slideSpeed = 0.12f; // slide-in speed
+            slideAnim += (slideTarget - slideAnim) * slideSpeed; // animate
+            needsRepaint = true; // repaint needed
+            
+            break;
     }
 
     // If any animation is in progress, repaint
@@ -419,7 +432,7 @@ void PluginDropZone::paint(juce::Graphics& g)
     float btnW = 36.0f; // Skinnier button
     float btnH = boxHeight; // Match plugin button height
     float gap = 8.0f; // Space between plugin box and x button
-    float slideOffset = btnW * (1.0f - slideAnim) * 2;
+    float slideOffset = btnW * (1.0f - slideAnim) * 4.0f; // Slide offset based on animation progress;
     
     for (int i = 0; i < numBoxes; ++i)
     {
@@ -437,26 +450,21 @@ void PluginDropZone::paint(juce::Graphics& g)
                 case SlideState::AnimatingOut:
                     boxX -= 30.0f * slideAnim;
                     break;
+                case SlideState::AnimatingAway:
+                    boxX -= 300.0f * slideAnim;
+                    if (slideAnim == 1.f)
+                    {
+                        // Remove plugin at index i
+                        selectedPluginNames.remove(i);
+                        audioProcessor.pluginInstances.remove(i);
+                        slideState = SlideState::Hidden;
+                        repaint();
+        
+                    }
                 default:
                     break;
             }
         }
-
-//        if (closed_clicked)
-//        {
-//            DBG("Closed Clicked Detected");
-//            boxX -= 400.0f * slideAnim;
-//            if (slideAnim == 1.f)
-//            {
-//                closed_clicked = false;
-//
-//                // Remove plugin at index i
-//                selectedPluginNames.remove(i);
-//                audioProcessor.pluginInstances.remove(i);
-//                repaint();
-//
-//            }
-//        }
         
         float boxY = startY + i * (boxHeight + spacing);
         juce::Rectangle<float> box(boxX, boxY, boxWidth, boxHeight);
@@ -488,18 +496,6 @@ void PluginDropZone::paint(juce::Graphics& g)
         if ((i == hoveredPluginIndex || i == previouslyHoveredPluginIndex) && i < selectedPluginNames.size())
         {
             
-            switch (slideState) {
-                case SlideState::AnimatingIn:
-                    slideOffset -= (1.0f * slideAnim);
-                    break;
-                case SlideState::AnimatingOut:
-                    slideOffset -= 1.0f * slideAnim;
-                    break;
-                default:
-                    break;
-            }
-
-
             juce::Rectangle<float> close(
                 box.getRight() + gap + slideOffset,
                 box.getY(),
@@ -512,6 +508,31 @@ void PluginDropZone::paint(juce::Graphics& g)
                 btnW,
                 btnH
             );
+            
+            switch (slideState) {
+                case SlideState::AnimatingIn:
+                    slideOffset -= (1.0f * slideAnim);
+                    break;
+                case SlideState::AnimatingOut:
+                    slideOffset -= 1.0f * slideAnim;
+                    break;
+                case SlideState::AnimatingAway:
+                    if (bypass.getRight() < 1.0f)
+                    {
+                        // Remove plugin at index i
+                        selectedPluginNames.remove(i);
+                        audioProcessor.pluginInstances.remove(i);
+                        slideState = SlideState::Hidden;
+                        
+                        hoveredPluginIndex = -1;
+                        // previouslyHoveredPluginIndex = -1;
+                        
+                        repaint();
+                    }
+                default:
+                    break;
+            }
+
             // Store for hit testing
             xButtonRects.add(close);
             bypassButtonRects.add(bypass);
@@ -529,6 +550,14 @@ void PluginDropZone::paint(juce::Graphics& g)
             g.setFont(24.0f);
             g.drawText("b", bypass, juce::Justification::centred);
             g.drawRoundedRectangle(bypass, 8.0f, 2.0f);
+
+            // --- Conditional: Check if right side of bypass meets left side of plugin box ---
+            if (std::abs(bypass.getRight() - box.getX()) < 1.0f) // Allow for float rounding
+            {
+                // They are touching (or nearly touching)
+                DBG("Bypass right meets plugin left");
+                // You can add any logic here that should happen when they meet
+            }
         } else {
             // Keep arrays in sync
             xButtonRects.add(juce::Rectangle<float>());
@@ -559,9 +588,8 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
     {
         if (xButtonRects[i].contains((float)event.x, (float)event.y))
         {
-
-            closed_clicked = true;
-            slideAnim = 0.f;
+            slideState = SlideState::AnimatingAway;
+            slideAnim = 0.0f; // Reset Slide Animation
             startTimerHz(60); // Start timer for hover/slide animation
             return;
         }
@@ -763,6 +791,7 @@ void PluginDropZone::itemDropped(const juce::DragAndDropTarget::SourceDetails& /
     DBG("Plugin dropped!");
     repaint();
 }
+
 
 
 

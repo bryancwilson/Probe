@@ -21,7 +21,7 @@
 //==============================================================================
 /**
 */
-class ChainBuilderAudioProcessorEditor  : public juce::AudioProcessorEditor, public juce::DragAndDropContainer
+class ChainBuilderAudioProcessorEditor  : public juce::AudioProcessorEditor, public juce::DragAndDropContainer, private juce::Timer
 {
 public:
     ChainBuilderAudioProcessorEditor (ChainBuilderAudioProcessor&);
@@ -117,6 +117,8 @@ public:
     juce::Label changeParams;
 
 private:
+    // void timerCallback() override;
+    
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
     ChainBuilderAudioProcessor& audioProcessor;

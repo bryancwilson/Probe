@@ -51,7 +51,7 @@ private:
     
     // For Sliding Buttons
     bool in_vertical_bounds = false;
-    enum class SlideState { Hidden, AnimatingIn, Shown, AnimatingOut }; // Define the possible animation states for the slide button
+    enum class SlideState { Hidden, AnimatingIn, Shown, AnimatingOut, AnimatingAway }; // Define the possible animation states for the slide button
     SlideState slideState = SlideState::Hidden; // Static variable to persist state across timerCallback calls
 
     juce::VST3PluginFormat pluginFormat;
