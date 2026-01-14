@@ -48,6 +48,10 @@ private:
     bool isClickOnPlus(const juce::Rectangle<float>& loadPluginBox, const juce::Point<int>& pos);
 
     bool isDragOver = false;
+    
+    // For Sliding Buttons
+    bool in_vertical_bounds = false;
+    
     juce::VST3PluginFormat pluginFormat;
     juce::AudioPluginFormatManager formatManager;
     juce::KnownPluginList pluginList;
@@ -72,6 +76,9 @@ private:
     void timerCallback() override;
 
     float hoverAnim = 0.0f;
+
+    juce::Array<juce::Rectangle<float>> xButtonRects;
+    juce::Array<juce::Rectangle<float>> bypassButtonRects;
 };
 
 // ===============================================================================================================

@@ -347,21 +347,29 @@ void PluginDropZone::timerCallback()
 void PluginDropZone::paint(juce::Graphics& g)
 {
     loadPluginBoxes.clear();
+    xButtonRects.clear();
+    bypassButtonRects.clear();
     int maxPlugins = 3;
     int numBoxes = std::min(maxPlugins, (int)selectedPluginNames.size() + 1);
     float boxWidth = 100.0f;
     float boxHeight = 50.0f;
-    float spacing = 20.0f;
+    float spacing = 80.0f;
     float totalHeight = numBoxes * boxHeight + (numBoxes - 1) * spacing;
     float startY = getHeight() / 2.0f - totalHeight / 2.0f;
     float centerX = getWidth() / 2.0f;
     for (int i = 0; i < numBoxes; ++i)
     {
+        // =================================== Load Plugin Box Logic ===========================================
         float boxX = centerX - boxWidth / 2.0f;
+        if (i == hoveredPluginIndex && slideAnim > 0.01f) // slightly slide over load plugin box if hovered
+        {
+             boxX -= 30.0f * slideAnim;
+        }
         float boxY = startY + i * (boxHeight + spacing);
         juce::Rectangle<float> box(boxX, boxY, boxWidth, boxHeight);
         loadPluginBoxes.add(box);
-        // Blend color if hovered
+        
+        // Set Colour For Load Plugin Box
         if (i == hoveredPluginIndex && hoverAnim > 0.01f)
         {
             juce::Colour base = juce::Colours::white;
@@ -374,33 +382,55 @@ void PluginDropZone::paint(juce::Graphics& g)
             g.setColour(juce::Colours::white);
         }
         
+        // Set Font For Load Plugin Box
         g.setFont(16.0f);
         if (i < selectedPluginNames.size())
             g.drawText(selectedPluginNames[i], box.toNearestInt(), juce::Justification::centred);
         else
             g.drawText("Load Plugin", box.toNearestInt(), juce::Justification::centred);
-        g.drawRoundedRectangle(box, 8.0f, 2.0f);
         
-        // Draw sliding button if hovered
-        if (i == hoveredPluginIndex && slideAnim > 0.01f)
+        g.drawRoundedRectangle(box, 8.0f, 2.0f); // Draw Load Plugin Box
+        
+        // =================================== Sliding Button Logic ===========================================
+        if (i == hoveredPluginIndex && slideAnim > 0.01f && i < selectedPluginNames.size())
         {
             float btnW = 36.0f; // Skinnier button
             float btnH = boxHeight; // Match plugin button height
             float gap = 8.0f; // Space between plugin box and x button
             float slideOffset = btnW * (1.0f - slideAnim);
-            juce::Rectangle<float> btnRect(
+            juce::Rectangle<float> close(
                 box.getRight() + gap + slideOffset,
                 box.getY(),
                 btnW,
                 btnH
             );
-            // Match the color style of the plugin box (white outline, transparent fill)
+            juce::Rectangle<float> bypass(
+                close.getRight() + gap + slideOffset,
+                close.getY(),
+                btnW,
+                btnH
+            );
+            // Store for hit testing
+            xButtonRects.add(close);
+            bypassButtonRects.add(bypass);
+            // Draw close button
             g.setColour(juce::Colours::white.withAlpha(0.12f));
-            g.fillRoundedRectangle(btnRect, 8.0f);
-            g.setColour(juce::Colours::white);
+            g.fillRoundedRectangle(close, 8.0f);
+            g.setColour(juce::Colours::red);
             g.setFont(24.0f);
-            g.drawText("x", btnRect, juce::Justification::centred);
-            g.drawRoundedRectangle(btnRect, 8.0f, 2.0f);
+            g.drawText("x", close, juce::Justification::centred);
+            g.drawRoundedRectangle(close, 8.0f, 2.0f);
+            // Draw bypass button
+            g.setColour(juce::Colours::white.withAlpha(0.12f));
+            g.fillRoundedRectangle(bypass, 8.0f);
+            g.setColour(juce::Colours::blue);
+            g.setFont(24.0f);
+            g.drawText("b", bypass, juce::Justification::centred);
+            g.drawRoundedRectangle(bypass, 8.0f, 2.0f);
+        } else {
+            // Keep arrays in sync
+            xButtonRects.add(juce::Rectangle<float>());
+            bypassButtonRects.add(juce::Rectangle<float>());
         }
     }
 }
@@ -420,6 +450,29 @@ bool PluginDropZone::isClickOnPlus(const juce::Rectangle<float>& loadPluginBox, 
 // Mouse click handler
 void PluginDropZone::mouseDown(const juce::MouseEvent& event)
 {
+    // Check for x or bypass button clicks first
+    for (int i = 0; i < xButtonRects.size(); ++i)
+    {
+        if (xButtonRects[i].contains((float)event.x, (float)event.y))
+        {
+            // Remove plugin at index i
+            if (i < selectedPluginNames.size() && i < audioProcessor.pluginInstances.size()) {
+                selectedPluginNames.remove(i);
+                audioProcessor.pluginInstances.remove(i);
+                repaint();
+            }
+            return;
+        }
+        if (bypassButtonRects[i].contains((float)event.x, (float)event.y))
+        {
+            // Toggle bypass for plugin at index i (example logic)
+            // You may need to implement actual bypass logic in your processor
+            // For now, just print
+            DBG("Bypass button clicked for plugin " << i);
+            // Optionally: set a bypass state array and repaint
+            return;
+        }
+    }
     // Check which plugin box was clicked
     for (int i = 0; i < loadPluginBoxes.size(); ++i)
     {
@@ -512,19 +565,42 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
 
 void PluginDropZone::mouseMove(const juce::MouseEvent& event)
 {
-    int hovered = -1;
-    for (int i = 0; i < loadPluginBoxes.size(); ++i)
+    // Start with the current hovered index
+    int hovered = hoveredPluginIndex;
+    
+    // want to check is mouse has moved to right while still staying in the vertical bounds of the load plugin box
+    if (hovered != -1 and ~in_vertical_bounds)
     {
-        if (i < selectedPluginNames.size() && loadPluginBoxes[i].contains((float)event.x, (float)event.y))
+        float boxX = loadPluginBoxes[hovered].getX();
+        float boxY = loadPluginBoxes[hovered].getY();
+        float boxHeight = loadPluginBoxes[hovered].getHeight();
+        if (event.x > boxX + 100.0f) // 100.0f is box width
         {
-            hovered = i;
-            break;
+            if (event.y >= boxY && event.y <= boxY + boxHeight)
+            {
+                // Mouse has moved to the right while still in vertical bounds
+                in_vertical_bounds = true;
+                return; // Keep the hovered index unchanged
+            }
         }
     }
+    // Iterate through all plugin boxes
+    for (int i = 0; i < loadPluginBoxes.size(); ++i)
+    {
+        // Only check boxes that correspond to loaded plugins (not the empty 'Load Plugin' box)
+        if (i < selectedPluginNames.size() && loadPluginBoxes[i].contains((float)event.x, (float)event.y))
+        {
+            // If the mouse is inside this plugin box, mark it as hovered
+            hovered = i;
+            break; // Stop searching after the first match
+        }
+        hovered = -1; // No box is hovered
+    }
+    // If the hovered box has changed, update the state and start the animation timer
     if (hovered != hoveredPluginIndex)
     {
         hoveredPluginIndex = hovered;
-        startTimerHz(60);
+        startTimerHz(60); // Start timer for hover/slide animation
     }
 }
 
