@@ -21,7 +21,7 @@
 //==============================================================================
 /**
 */
-class ChainBuilderAudioProcessorEditor  : public juce::AudioProcessorEditor, public juce::DragAndDropContainer, private juce::Timer
+class ChainBuilderAudioProcessorEditor  : public juce::AudioProcessorEditor, public juce::DragAndDropContainer
 {
 public:
     ChainBuilderAudioProcessorEditor (ChainBuilderAudioProcessor&);
