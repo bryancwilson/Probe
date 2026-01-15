@@ -21,7 +21,7 @@
 //==============================================================================
 /**
 */
-class ChainBuilderAudioProcessorEditor  : public juce::AudioProcessorEditor, public juce::DragAndDropContainer
+class ChainBuilderAudioProcessorEditor  : public juce::AudioProcessorEditor, public juce::DragAndDropContainer, private juce::Timer
 {
 public:
     ChainBuilderAudioProcessorEditor (ChainBuilderAudioProcessor&);
@@ -115,9 +115,16 @@ public:
     // Dynamics
     bool emptyDetParams = true;
     juce::Label changeParams;
+    
+    // Slide Over Drop Zone
+    enum class DropZoneSlideState { Idle, SlidingIn, Shown, SlidingOut };
+    DropZoneSlideState dropZoneSlideState = DropZoneSlideState::Idle;
+    float dropZoneSlideAnim = 0.0f; // 0.0 = hidden, 1.0 = fully shown
+    void SlideOverDropZone();
+    bool SlideOverDropZone_flag = false;
 
 private:
-    // void timerCallback() override;
+    void timerCallback() override;
     
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.

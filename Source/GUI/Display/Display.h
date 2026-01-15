@@ -81,6 +81,7 @@ private:
     float hoverAnim = 0.0f;
 
     bool closed_clicked = false;
+    bool emptyPluginBoxHover = false;
     
     juce::Array<juce::Rectangle<float>> xButtonRects;
     juce::Array<juce::Rectangle<float>> bypassButtonRects;

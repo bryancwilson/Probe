@@ -18,7 +18,6 @@ ChainBuilderAudioProcessorEditor::ChainBuilderAudioProcessorEditor (ChainBuilder
     initWindowSize_Editor();
     dropZone = new PluginDropZone(audioProcessor, *this);
 
-
 }
 
 ChainBuilderAudioProcessorEditor::~ChainBuilderAudioProcessorEditor()
@@ -26,11 +25,16 @@ ChainBuilderAudioProcessorEditor::~ChainBuilderAudioProcessorEditor()
 }
 
 //==============================================================================
-
+void ChainBuilderAudioProcessorEditor::SlideOverDropZone()
+{
+    SlideOverDropZone_flag = true;
+    startTimerHz(60);
+}
 // This ensures any click in the editor window grabs keyboard focus
 void ChainBuilderAudioProcessorEditor::mouseDown (const juce::MouseEvent&)
 {
     grabKeyboardFocus();
+
 }
 
 void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
@@ -50,9 +54,19 @@ void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
     // testParameterDisplayOffsets();
 
     // Position and show your drop zone
-    dropZone->setBounds (0, 0, getWidth() * 0.25f, getHeight() - 80);
-    addAndMakeVisible (dropZone);
+    if (!SlideOverDropZone_flag)
+    {
+        dropZone->setBounds (0, 0, getWidth() * 0.25f, getHeight() - 80);
+    }
+    else
+    {
+        float dropZoneWidth = getWidth() * 0.25f;
+        float trav_length = getWidth() * 0.50f;
+        int dropZoneX = static_cast<int>(trav_length * dropZoneSlideAnim);
+        dropZone->setBounds(dropZoneX, 0, dropZoneWidth, getHeight() - 80);
+    }
     
+    addAndMakeVisible (dropZone);
     // make white right vertical boundary line on dropzone
     g.setColour(juce::Colours::white);
     float lineX = dropZone->getRight();
@@ -171,7 +185,7 @@ void ChainBuilderAudioProcessorEditor::resized()
 //    int labelHeight = 25;   // desired height
 //    int creativeWidth = 200;   // desired width of the label
 //    int creativeHeight = 100;
-//    
+//
 //    int x_translate = (area.getWidth() - labelWidth) / 2.8f;  // center horizontally
 //    int x_discuss = (area.getWidth() - labelWidth) / 1.3f;  // center horizontally
 //    int y = 10;  // small top margin
@@ -190,11 +204,11 @@ void ChainBuilderAudioProcessorEditor::resized()
 //    Discuss.setJustificationType(juce::Justification::centred);
 //    Discuss.setBounds(x_discuss, y, labelWidth, labelHeight);
 //    addAndMakeVisible(Discuss);
-//    
+//
 //    // After you set Translate bounds
 //    auto translateBounds = Translate.getBounds();
 //    int x_creative_text = translateBounds.getCentreX() - creativeWidth / 2;
-//    
+//
 //    creative_response.setFont(juce::Font(font, 15.0f, 0));
 //    creative_response.setColour(juce::Label::textColourId, juce::Colours::white);
 //    creative_response.setJustificationType(juce::Justification::centred);
@@ -214,6 +228,68 @@ void ChainBuilderAudioProcessorEditor::resized()
     // ================ AI Creative Response ===================
    
 
+}
+
+void ChainBuilderAudioProcessorEditor::timerCallback()
+{
+
+    // --- DROP ZONE SLIDE STATE MACHINE ---
+    // Define the possible animation states for the drop zone
+
+    bool needsRepaint = false;
+
+    switch (dropZoneSlideState) {
+        case DropZoneSlideState::Idle:
+            // Drop zone is fully hidden; transition to SlidingIn if flag is set
+            if (SlideOverDropZone_flag) {
+                dropZoneSlideState = DropZoneSlideState::SlidingIn;
+            }
+            dropZoneSlideAnim = 0.0f;
+            break;
+        case DropZoneSlideState::SlidingIn:
+            // Animate the drop zone sliding in
+            if (!SlideOverDropZone_flag) {
+                dropZoneSlideState = DropZoneSlideState::SlidingOut;
+            } else {
+                float target = 1.0f;
+                float speed = 0.12f;
+                dropZoneSlideAnim += (target - dropZoneSlideAnim) * speed;
+                needsRepaint = true;
+                if (std::abs(dropZoneSlideAnim - target) <= 0.01f) {
+                    dropZoneSlideAnim = target;
+                    dropZoneSlideState = DropZoneSlideState::Shown;
+                }
+            }
+            break;
+        case DropZoneSlideState::Shown:
+            // Drop zone is fully shown; transition to SlidingOut if flag is cleared
+            if (!SlideOverDropZone_flag) {
+                dropZoneSlideState = DropZoneSlideState::SlidingOut;
+            }
+            dropZoneSlideAnim = 1.0f;
+            break;
+        case DropZoneSlideState::SlidingOut:
+            // Animate the drop zone sliding out
+            if (SlideOverDropZone_flag) {
+                dropZoneSlideState = DropZoneSlideState::SlidingIn;
+            } else {
+                float target = 0.0f;
+                float speed = 0.18f;
+                dropZoneSlideAnim += (target - dropZoneSlideAnim) * speed;
+                needsRepaint = true;
+                if (std::abs(dropZoneSlideAnim - target) <= 0.01f) {
+                    dropZoneSlideAnim = target;
+                    dropZoneSlideState = DropZoneSlideState::Idle;
+                }
+            }
+            break;
+    }
+
+    // Use dropZoneSlideAnim (0.0 to 1.0) to control dropZone position/opacity in paint()
+    // For example, you could offset the dropZone X or Y position based on dropZoneSlideAnim
+
+    if (needsRepaint)
+        repaint();
 }
 
 int ChainBuilderAudioProcessorEditor::extract_min(int val1, int val2)

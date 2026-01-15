@@ -183,7 +183,7 @@ void ChainBuilderAudioProcessorEditor::display_metrics()
 
 //void ChainBuilderAudioProcessorEditor::timerCallback()
 //{
-//    
+//
 //}
 
 // CLASSES
@@ -320,7 +320,7 @@ void PluginDropZone::timerCallback()
         dashPhase = 0.0f;
 
     // Determine the target hover animation value (1.0 if hovered, 0.0 if not)
-    float target = (hoveredPluginIndex >= 0) ? 1.0f : 0.0f;
+    float target = (hoveredPluginIndex >= 0 || emptyPluginBoxHover) ? 1.0f : 0.0f;
     // Animation speeds for color fade
     float speedIn = 0.07f;   // Speed when fading in
     float speedOut = 0.03f;  // Speed when fading out
@@ -469,29 +469,44 @@ void PluginDropZone::paint(juce::Graphics& g)
         float boxY = startY + i * (boxHeight + spacing);
         juce::Rectangle<float> box(boxX, boxY, boxWidth, boxHeight);
         loadPluginBoxes.add(box);
-        
-        // Set Colour For Load Plugin Box
-        if (i == hoveredPluginIndex && hoverAnim > 0.01f)
+
+        // Highlight empty loadPluginBox red when hovered
+        if (i == selectedPluginNames.size()) // This is the empty box
         {
-            juce::Colour base = juce::Colours::white;
-            juce::Colour hover = juce::Colours::orange;
-            juce::Colour blended = base.interpolatedWith(hover, hoverAnim * 0.5f);
-            g.setColour(blended);
-        }
-        else
-        {
-            g.setColour(juce::Colours::white);
-        }
-        
-        // Set Font For Load Plugin Box
-        g.setFont(16.0f);
-        if (i < selectedPluginNames.size())
-            g.drawText(selectedPluginNames[i], box.toNearestInt(), juce::Justification::centred);
-        else
+            if (emptyPluginBoxHover && hoverAnim > 0.01f)
+            {
+                juce::Colour base = juce::Colours::grey;
+                juce::Colour hover = juce::Colours::white;
+                juce::Colour blended = base.interpolatedWith(hover, hoverAnim * 0.5f);
+                g.setColour(blended);
+            }
+            else
+            {
+                g.setColour(juce::Colours::grey);
+            }
+            g.setFont(16.0f);
             g.drawText("Load Plugin", box.toNearestInt(), juce::Justification::centred);
-        
-        g.drawRoundedRectangle(box, 8.0f, 2.0f); // Draw Load Plugin Box
-        
+            g.drawRoundedRectangle(box, 8.0f, 2.0f);
+            continue; // Skip rest of loop for empty box
+        }
+        else{
+            // Set Colour For Load Plugin Box
+            if (i == hoveredPluginIndex && hoverAnim > 0.01f)
+            {
+                juce::Colour base = juce::Colours::white;
+                juce::Colour hover = juce::Colours::orange;
+                juce::Colour blended = base.interpolatedWith(hover, hoverAnim * 0.5f);
+                g.setColour(blended);
+            }
+            else
+            {
+                g.setColour(juce::Colours::white);
+            }
+            g.setFont(16.0f);
+            g.drawText(selectedPluginNames[i], box.toNearestInt(), juce::Justification::centred);
+            g.drawRoundedRectangle(box, 8.0f, 2.0f); // Draw Load Plugin Box
+        }
+
         // =================================== Sliding Button Logic ===========================================
         if ((i == hoveredPluginIndex || i == previouslyHoveredPluginIndex) && i < selectedPluginNames.size())
         {
@@ -599,6 +614,8 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
             // You may need to implement actual bypass logic in your processor
             // For now, just print
             DBG("Bypass button clicked for plugin " << i);
+            hostEditor.SlideOverDropZone();
+            
             // Optionally: set a bypass state array and repaint
             return;
         }
@@ -724,12 +741,27 @@ void PluginDropZone::mouseMove(const juce::MouseEvent& event)
             hovered = i;
             break; // Stop searching after the first match
         }
+        
+        if (i == selectedPluginNames.size() && loadPluginBoxes[i].contains((float)event.x, (float)event.y))
+        {
+            // If the mouse is inside the 'Load Plugin' box, mark it as hovered
+            emptyPluginBoxHover = true;
+            repaint();
+            break; // Stop searching after the first match
+        }
+        else{
+            emptyPluginBoxHover = false;
+            repaint();
+        }
         hovered = -1; // No box is hovered
     }
     // If the hovered box has changed, update the state and start the animation timer
-    if (hovered != hoveredPluginIndex)
+    if (hovered != hoveredPluginIndex || emptyPluginBoxHover)
     {
-        hoveredPluginIndex = hovered;
+        if (hovered != hoveredPluginIndex)
+        {
+            hoveredPluginIndex = hovered;
+        }
         startTimerHz(60); // Start timer for hover/slide animation
     }
 }
@@ -791,6 +823,7 @@ void PluginDropZone::itemDropped(const juce::DragAndDropTarget::SourceDetails& /
     DBG("Plugin dropped!");
     repaint();
 }
+
 
 
 
