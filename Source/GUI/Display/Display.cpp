@@ -320,7 +320,7 @@ void PluginDropZone::timerCallback()
         dashPhase = 0.0f;
 
     // Determine the target hover animation value (1.0 if hovered, 0.0 if not)
-    float target = (hoveredPluginIndex >= 0 || emptyPluginBoxHover) ? 1.0f : 0.0f;
+    float target = (hoveredPluginIndex >= 0 || addHoveredIndex >= 0 || emptyPluginBoxHover) ? 1.0f : 0.0f;
     // Animation speeds for color fade
     float speedIn = 0.07f;   // Speed when fading in
     float speedOut = 0.03f;  // Speed when fading out
@@ -470,7 +470,7 @@ void PluginDropZone::paint(juce::Graphics& g)
         juce::Rectangle<float> box(boxX, boxY, boxWidth, boxHeight);
         loadPluginBoxes.add(box);
 
-        // Highlight empty loadPluginBox red when hovered
+        // ============================== Handle Hover Logic =======================================
         if (i == selectedPluginNames.size()) // This is the empty box
         {
             if (emptyPluginBoxHover && hoverAnim > 0.01f)
@@ -506,7 +506,45 @@ void PluginDropZone::paint(juce::Graphics& g)
             g.drawText(selectedPluginNames[i], box.toNearestInt(), juce::Justification::centred);
             g.drawRoundedRectangle(box, 8.0f, 2.0f); // Draw Load Plugin Box
         }
+        
+        // =================================== Handle Connection Logic ====================================
+        if (i < selectedPluginNames.size())
+        {
+            int shrinkage = 15;
+            if (hoveredPluginIndex == i)
+            {
+                juce::Colour base = juce::Colours::grey;
+                juce::Colour hover = juce::Colours::black;
+                juce::Colour blended = base.interpolatedWith(hover, hoverAnim);
+                g.setColour(blended);
+            }
+            else if (addHoveredIndex == i)
+            {
+                juce::Colour base = juce::Colours::grey;
+                juce::Colour hover = juce::Colours::white;
+                juce::Colour blended = base.interpolatedWith(hover, hoverAnim);
+                g.setColour(blended);
+            }
+            else
+            {
+                g.setColour(juce::Colours::grey);
+            }
+            
+            juce::Rectangle<float> add(
+                box.getX() - gap - btnW + shrinkage,
+                box.getY(),
+                btnW - shrinkage,
+                btnH
+            );
+            
+            g.setFont(24.0f);
+            g.drawText("+", add, juce::Justification::centred);
+            g.drawRoundedRectangle(add, 8.0f, 2.0f); // may look good without
+            
+            addButtonRects.add(add); // add buttons array
 
+        }
+        
         // =================================== Sliding Button Logic ===========================================
         if ((i == hoveredPluginIndex || i == previouslyHoveredPluginIndex) && i < selectedPluginNames.size())
         {
@@ -712,10 +750,23 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
 
 void PluginDropZone::mouseMove(const juce::MouseEvent& event)
 {
-    // Start with the current hovered index
-    int hovered = hoveredPluginIndex;
+
+    // =========================== Add Buttin Hover Logic ====================================
+    int addHovered = addHoveredIndex;
     
-    // want to check is mouse has moved to right while still staying in the vertical bounds of the load plugin box
+    for (int i = 0; i < addButtonRects.size(); ++i)
+    {
+        if (addButtonRects[i].contains((float)event.x, (float)event.y))
+        {
+            addHovered = i;
+            break; // Stop searching after the first match
+        }
+        addHovered = -1;
+    }
+
+    
+    // ========================== Load Plugin Box Hover Logic ==================================
+    int hovered = hoveredPluginIndex;
     if (hovered != -1 and ~in_vertical_bounds)
     {
         float boxX = loadPluginBoxes[hovered].getX();
@@ -756,11 +807,15 @@ void PluginDropZone::mouseMove(const juce::MouseEvent& event)
         hovered = -1; // No box is hovered
     }
     // If the hovered box has changed, update the state and start the animation timer
-    if (hovered != hoveredPluginIndex || emptyPluginBoxHover)
+    if (hovered != hoveredPluginIndex || emptyPluginBoxHover || addHovered != addHoveredIndex)
     {
         if (hovered != hoveredPluginIndex)
         {
             hoveredPluginIndex = hovered;
+        }
+        else if (addHovered != addHoveredIndex)
+        {
+            addHoveredIndex = addHovered;
         }
         startTimerHz(60); // Start timer for hover/slide animation
     }

@@ -69,6 +69,7 @@ private:
     juce::StringArray selectedPluginNames;
     int hoveredPluginIndex = -1;
     int previouslyHoveredPluginIndex = -1;
+    int addHoveredIndex = -1;
     float slideAnim = 0.0f;
 
     // Handle Plugin View
@@ -85,6 +86,7 @@ private:
     
     juce::Array<juce::Rectangle<float>> xButtonRects;
     juce::Array<juce::Rectangle<float>> bypassButtonRects;
+    juce::Array<juce::Rectangle<float>> addButtonRects;
 };
 
 // ===============================================================================================================
