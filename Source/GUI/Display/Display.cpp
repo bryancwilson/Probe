@@ -416,6 +416,7 @@ void PluginDropZone::paint(juce::Graphics& g)
 {
     loadPluginBoxes.clear();
     xButtonRects.clear();
+    addButtonRects.clear();
     bypassButtonRects.clear();
     int maxPlugins = 3;
     int numBoxes = std::min(maxPlugins, (int)selectedPluginNames.size() + 1);
@@ -648,13 +649,16 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
         }
         if (bypassButtonRects[i].contains((float)event.x, (float)event.y))
         {
-            // Toggle bypass for plugin at index i (example logic)
-            // You may need to implement actual bypass logic in your processor
-            // For now, just print
             DBG("Bypass button clicked for plugin " << i);
             hostEditor.SlideOverDropZone();
             
             // Optionally: set a bypass state array and repaint
+            return;
+        }
+        if (addButtonRects[i].contains((float)event.x, (float)event.y))
+        {
+            // This is the "+" button next to a loaded plugin
+            DBG("Add button clicked for plugin " << i);
             return;
         }
     }
@@ -679,9 +683,11 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
                         auto pluginArea = hostEditor.getLocalBounds();
                         ed->setBounds(pluginArea.withY(0).withHeight(1));
                         animator.animateComponent(editor.get(), pluginArea, 1.0f, 300, true, 0.0f, 0.0f);
+                        
                         int requiredHeight = pluginArea.getHeight();
                         int requiredWidth = pluginArea.getWidth();
                         auto hostEditorBounds = hostEditor.getBounds();
+                        
                         hostEditor.setBounds(hostEditorBounds.withHeight(requiredHeight).withWidth(requiredWidth));
                         hostEditor.extend_panel = true;
                         hostEditor.togglePromptSidebar(hostEditor.extend_panel);
