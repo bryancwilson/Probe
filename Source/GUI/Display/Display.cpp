@@ -1,6 +1,15 @@
 #include "../../PluginEditor.h"
 #include "Display.h"
 #include "../../Metrics/Metrics.h"
+#include <cmath>
+
+// ====================================== MACROS =======================================
+// CLICK ANIMATION CONSTANTS
+#define CLICK_ANIM_MULT 2.2f
+#define PLUGIN_BOX_WIDTH 100.f
+#define PLUGIN_BOX_X_DISP 40.f
+#define ORIGINAL_SHRINKAGE 15.f
+#define TARGET_SHRINKAGE 15.f - PLUGIN_BOX_X_DISP
 
 // FUNCTIONS
 void ChainBuilderAudioProcessorEditor::initWindowSize_Editor()
@@ -312,104 +321,166 @@ PluginDropZone::~PluginDropZone() {
     }
 }
 
-void PluginDropZone::timerCallback()
+void PluginDropZone::updateSlideAnimation(bool& needsRepaint)
 {
-    // Animate the dash phase for any dashed outlines (if used)
-    dashPhase += 0.5f;
-    if (dashPhase > 6.0f) // reset after one dash length
-        dashPhase = 0.0f;
-
-    // Determine the target hover animation value (1.0 if hovered, 0.0 if not)
-    float target = (hoveredPluginIndex >= 0 || addHoveredIndex >= 0 || emptyPluginBoxHover) ? 1.0f : 0.0f;
-    // Animation speeds for color fade
-    float speedIn = 0.07f;   // Speed when fading in
-    float speedOut = 0.03f;  // Speed when fading out
-    float speed = (target > hoverAnim) ? speedIn : speedOut;
-    bool needsRepaint = false;
-    // Animate hover color transition
-    if (std::abs(hoverAnim - target) > 0.01f) {
-        hoverAnim += (target - hoverAnim) * speed;
-        needsRepaint = true;
-    } else {
-        hoverAnim = target;
-    }
-    
-    // --- SIMPLIFIED SLIDE LOGIC ---
-    // State machine for slide button animation
-    switch (slideState) {
-        case SlideState::Hidden: // Button is fully hidden
-            
-            if (hoveredPluginIndex >= 0) {  // transition to AnimatingIn if hovered
+    switch (slideState)
+    {
+        case SlideState::Hidden:
+            if (hoveredPluginIndex >= 0) {
                 slideState = SlideState::AnimatingIn;
             }
             slideAnim = 0.0f;
             break;
-            
-        case SlideState::AnimatingIn: // Animate the button sliding in
-            
+
+        case SlideState::AnimatingIn:
             if (hoveredPluginIndex < 0) {
-                // If no longer hovered, start animating out
                 slideState = SlideState::AnimatingOut;
             } else {
-                float slideTarget = 1.0f; // fully shown
-                float slideSpeed = 0.12f; // slide-in speed
-                slideAnim += (slideTarget - slideAnim) * slideSpeed; // animate
-                
-                needsRepaint = true; // repaint needed
-                
-                // If animation is close enough to target, snap to shown state
-                if (std::abs(slideAnim - slideTarget) <= 0.01f) {
-                    slideAnim = slideTarget;
+                slideAnim += (1.0f - slideAnim) * 0.12f;
+                needsRepaint = true;
+                if (slideAnim >= 0.99f) {
+                    slideAnim = 1.0f;
                     slideState = SlideState::Shown;
                 }
                 previouslyHoveredPluginIndex = hoveredPluginIndex;
             }
             break;
+
         case SlideState::Shown:
-            // Button is fully shown; transition to AnimatingOut if not hovered
             if (hoveredPluginIndex < 0) {
                 slideState = SlideState::AnimatingOut;
             }
             slideAnim = 1.0f;
             break;
+
         case SlideState::AnimatingOut:
-            // Animate the button sliding out
             if (hoveredPluginIndex >= 0) {
-                // If hovered again, start animating in
                 slideState = SlideState::AnimatingIn;
             } else {
-                float slideTarget = 0.0f; // fully hidden
-                float slideSpeed = 0.20f; // slide-out speed
-                slideAnim += (slideTarget - slideAnim) * slideSpeed; // animate
-                
-                needsRepaint = true; // repaint needed
-                
-                // If animation is close enough to target, snap to hidden state
-                if (std::abs(slideAnim - slideTarget) <= 0.01f) {
-                    slideAnim = slideTarget;
+                slideAnim += (0.0f - slideAnim) * 0.20f;
+                needsRepaint = true;
+                if (slideAnim <= 0.01f) {
+                    slideAnim = 0.0f;
                     slideState = SlideState::Hidden;
                     previouslyHoveredPluginIndex = -1;
                 }
             }
             break;
+
         case SlideState::AnimatingAway:
+            slideAnim += (1.0f - slideAnim) * 0.12f;
+            needsRepaint = true;
             
-            float slideTarget = 1.0f; // fully shown
-            float slideSpeed = 0.12f; // slide-in speed
-            slideAnim += (slideTarget - slideAnim) * slideSpeed; // animate
-            needsRepaint = true; // repaint needed
-            
+            // Logic for when the plugin "yeets" off the screen
+            if (slideAnim >= 0.99f) {
+                handlePluginRemoval(); // Helper for the cleanup logic
+            }
             break;
     }
+}
 
-    // If any animation is in progress, repaint
-    if (needsRepaint) {
-        repaint();
-    } else if (hoverAnim == 0.0f && slideAnim == 0.0f) {
-        // If no animation is active, stop the timer and do a final repaint
-        stopTimer();
+void PluginDropZone::handlePluginRemoval()
+{
+    // Ensure we have a valid index to remove
+    if (previouslyHoveredPluginIndex >= 0 && previouslyHoveredPluginIndex < selectedPluginNames.size())
+    {
+        selectedPluginNames.remove(previouslyHoveredPluginIndex);
+        audioProcessor.pluginInstances.remove(previouslyHoveredPluginIndex);
+        
+        // Reset UI states
+        slideState = SlideState::Hidden;
+        slideAnim = 0.0f;
+        hoveredPluginIndex = -1;
+        previouslyHoveredPluginIndex = -1;
+        
         repaint();
     }
+}
+void PluginDropZone::timerCallback()
+{
+    dashPhase = std::fmod(dashPhase + 0.5f, 6.0f);
+    bool needsRepaint = false;
+
+    // 1. Hover Animation Progress
+    float hoverTarget = (hoveredPluginIndex >= 0 || addHoveredIndex >= 0 || emptyPluginBoxHover) ? 1.0f : 0.0f;
+    if (std::abs(hoverAnim - hoverTarget) > 0.001f) {
+        hoverAnim += (hoverTarget - hoverAnim) * ((hoverTarget > hoverAnim) ? 0.07f : 0.03f);
+        needsRepaint = true;
+    }
+
+    // 2. Click/Routing Animation Progress (The Sigmoid Drive)
+    float clickTarget = (triggerClickAnim) ? 1.0f : 0.0f;
+    if (std::abs(clickAnim - clickTarget) > 0.001f) {
+        clickAnim += (clickTarget - clickAnim) * ((clickTarget > clickAnim) ? 0.07f : 0.03f);
+        needsRepaint = true;
+    } else {
+        clickAnim = clickTarget;
+        // Handle state completion
+        if (triggerClickAnim && clickAnim >= 1.0f) {
+            if (addState == AddState::SlidingOut) addState = AddState::Shown;
+            else if (addState == AddState::SlidingIn) { addState = AddState::Default; addClicked = -1; }
+            triggerClickAnim = false;
+        }
+    }
+    float x = clickAnim;
+    float y = 1.f - clickAnim;
+    visualClickAnim = x * x * x * (x * (x * 6.0f - 15.0f) + 10.0f);
+    visualClickAnimInv = y * y * y * (y * (y * 6.0f - 15.0f) + 10.0f);
+
+    // 3. Slide State Machine (Simplified)
+    updateSlideAnimation(needsRepaint);
+
+    if (needsRepaint) repaint();
+    
+    // Stop timer only if everything is static
+    if (!needsRepaint && hoverAnim <= 0.0f && slideAnim <= 0.0f && clickAnim <= 0.0f)
+        stopTimer();
+}
+
+void PluginDropZone::drawCurvedArrow (juce::Graphics& g,
+                      juce::Point<float> from,
+                      juce::Point<float> to,
+                      float curvature = 30.0f,
+                      float shaftThickness = 3.0f,
+                      float headLength = 12.0f,
+                      float headWidth = 14.0f,
+                      juce::Colour colour = juce::Colours::white)
+{
+    const float len = from.getDistanceFrom (to);
+    if (len <= 1.0f) return;
+
+    // 1. Calculate Control Point for the curve
+    auto midPoint = (from + to) * 0.5f;
+    auto dir = (to - from) / len;
+    auto perp = juce::Point<float> (-dir.y, dir.x);
+    auto controlPoint = midPoint + (perp * curvature);
+
+    // 2. Determine Arrow Head Angle (Corrected Normalization)
+    auto tangentVec = to - controlPoint;
+    auto tangentLen = tangentVec.getDistanceFromOrigin();
+    auto tangentDir = (tangentLen > 0.0f) ? tangentVec / tangentLen : dir;
+    auto tangentPerp = juce::Point<float> (-tangentDir.y, tangentDir.x);
+
+    // 3. Define Arrow Head Points
+    auto headBase = to - (tangentDir * headLength);
+    auto left  = headBase + (tangentPerp * (headWidth * 0.5f));
+    auto right = headBase - (tangentPerp * (headWidth * 0.5f));
+
+    // 4. Draw the Curved Shaft
+    juce::Path shaft;
+    shaft.startNewSubPath (from);
+    // Draw to headBase so the line doesn't overlap the tip
+    shaft.quadraticTo (controlPoint, headBase);
+    
+    g.setColour (colour);
+    g.strokePath (shaft, juce::PathStrokeType (shaftThickness,
+                                               juce::PathStrokeType::curved,
+                                               juce::PathStrokeType::rounded));
+
+    // 5. Draw the Head
+    juce::Path head;
+    head.addTriangle (to, left, right);
+    g.fillPath (head);
 }
 
 void PluginDropZone::paint(juce::Graphics& g)
@@ -422,12 +493,10 @@ void PluginDropZone::paint(juce::Graphics& g)
     int numBoxes = std::min(maxPlugins, (int)selectedPluginNames.size() + 1);
     
     // Box Parameters
-    float boxWidth = 100.0f;
     float boxHeight = 50.0f;
     float spacing = 80.0f;
     float totalHeight = numBoxes * boxHeight + (numBoxes - 1) * spacing;
     float startY = getHeight() / 2.0f - totalHeight / 2.0f;
-    float centerX = getWidth() / 2.0f;
     
     // Slide Box Parameters
     float btnW = 36.0f; // Skinnier button
@@ -437,8 +506,11 @@ void PluginDropZone::paint(juce::Graphics& g)
     
     for (int i = 0; i < numBoxes; ++i)
     {
-        // =================================== Load Plugin Box Logic ===========================================
-        float boxX = centerX - boxWidth / 2.0f;
+        // =================================== Sliding Animation (Load Plugin Box Logic) ===========================================
+        float boxX = (getWidth() / 2.0f) - 100 / 2.0f;
+        float boxWidth = PLUGIN_BOX_WIDTH;
+        float shrinkage = ORIGINAL_SHRINKAGE;
+        
         if (i == hoveredPluginIndex || i == previouslyHoveredPluginIndex) // slightly slide over load plugin box if hovered
         {
             switch (slideState) {
@@ -465,61 +537,154 @@ void PluginDropZone::paint(juce::Graphics& g)
                 default:
                     break;
             }
+            
         }
         
-        float boxY = startY + i * (boxHeight + spacing);
-        juce::Rectangle<float> box(boxX, boxY, boxWidth, boxHeight);
-        loadPluginBoxes.add(box);
+        // ================================== Click Button Animation (Load Plugin Box Logic and "+" Box) ===========================================
+        // Common constants for all cases
+        const float fullWidth = PLUGIN_BOX_WIDTH;
+        const float targetWidth = PLUGIN_BOX_WIDTH - PLUGIN_BOX_X_DISP;
+        const float originalBoxX = (getWidth() / 2.0f) - (100.0f / 2.0f);
+        const float origShrinkage = ORIGINAL_SHRINKAGE; // how much the box shrinks during click animation
+        const float targetShrinkage = TARGET_SHRINKAGE;
 
-        // ============================== Handle Hover Logic =======================================
+        switch (addState)
+        {
+            case AddState::Default:
+                if (triggerClickAnim)
+                {
+                    addState = AddState::SlidingOut;
+                    init_var_for_click_anim = true;
+                }
+                break;
+
+            case AddState::SlidingOut:
+                if (addClicked != i && i < selectedPluginNames.size())
+                {
+                    // Use the sigmoid to map from Start -> End
+                    boxWidth  = fullWidth + (targetWidth - fullWidth) * visualClickAnim;
+                    boxX      = originalBoxX + (PLUGIN_BOX_X_DISP * visualClickAnim);
+                    shrinkage = origShrinkage + (targetShrinkage - origShrinkage) * visualClickAnim;
+                    
+                    juce::Colour base = juce::Colours::white;
+                    juce::Colour hover = juce::Colours::grey;
+                    juce::Colour blended = base.interpolatedWith(hover, clickAnim);
+                    g.setColour(blended);
+                    DBG("Blended: " + blended.toString());
+                    
+                    if (clickAnim >= .9f)
+                    {
+                        clickAnim = 1.0f;
+                        triggerClickAnim = false;
+                        addState = AddState::Shown;
+                    }
+                }
+                break;
+
+            case AddState::Shown:
+                if (triggerClickAnim)
+                {
+                    addState = AddState::SlidingIn;
+                }
+                
+                // While shown, keep the values locked at the "End" state
+                if (addClicked != i && i < selectedPluginNames.size())
+                {
+                    boxWidth  = targetWidth;
+                    boxX      = originalBoxX + PLUGIN_BOX_X_DISP;
+                    shrinkage = targetShrinkage;
+                    g.setColour(juce::Colours::grey);
+                }
+
+                break;
+
+            case AddState::SlidingIn:
+
+                if (addClicked != i && i < selectedPluginNames.size())
+                {
+                    // The same math applies! As clickAnim goes from 1.0 down to 0.0,
+                    // the values will naturally slide back to their original positions.
+                    boxWidth  = fullWidth + (targetWidth - fullWidth) * visualClickAnimInv;
+                    boxX      = originalBoxX + (PLUGIN_BOX_X_DISP * visualClickAnimInv);
+                    shrinkage = origShrinkage + (targetShrinkage - origShrinkage) * visualClickAnimInv;
+                    
+                    juce::Colour base = juce::Colours::grey;
+                    juce::Colour hover = juce::Colours::white;
+                    juce::Colour blended = base.interpolatedWith(hover, visualClickAnim);
+                    g.setColour(blended);
+
+                    if (clickAnim >= .9f)
+                    {
+                        clickAnim = 1.0f;
+                        triggerClickAnim = false;
+                        addState = AddState::Default;
+                        addClicked = -1;
+                    }
+                }
+                break;
+        }
+
+        // ============================== Handle Hover Logic (Load Plugin Box) =======================================
         if (i == selectedPluginNames.size()) // This is the empty box
         {
+
             if (emptyPluginBoxHover && hoverAnim > 0.01f)
             {
                 juce::Colour base = juce::Colours::grey;
                 juce::Colour hover = juce::Colours::white;
-                juce::Colour blended = base.interpolatedWith(hover, hoverAnim * 0.5f);
+                juce::Colour blended = base.interpolatedWith(hover, hoverAnim);
                 g.setColour(blended);
+
             }
             else
             {
                 g.setColour(juce::Colours::grey);
             }
-            g.setFont(16.0f);
-            g.drawText("Load Plugin", box.toNearestInt(), juce::Justification::centred);
-            g.drawRoundedRectangle(box, 8.0f, 2.0f);
-            continue; // Skip rest of loop for empty box
+            
         }
         else{
-            // Set Colour For Load Plugin Box
             if (i == hoveredPluginIndex && hoverAnim > 0.01f)
             {
                 juce::Colour base = juce::Colours::white;
                 juce::Colour hover = juce::Colours::orange;
                 juce::Colour blended = base.interpolatedWith(hover, hoverAnim * 0.5f);
                 g.setColour(blended);
+                // DBG("Blended: " + blended.toString());
             }
             else
             {
                 g.setColour(juce::Colours::white);
             }
-            g.setFont(16.0f);
+            
+        }
+        
+        // =========================== Draw Load Plugin Box ===========================================
+        float boxY = startY + i * (boxHeight + spacing);
+        juce::Rectangle<float> box(boxX, boxY, boxWidth, boxHeight);
+        loadPluginBoxes.add(box);
+        g.setFont(16.0f);
+        if (i == selectedPluginNames.size())
+        {
+            g.drawText("Load Plugin", box.toNearestInt(), juce::Justification::centred);
+            g.drawRoundedRectangle(box, 8.0f, 2.0f);
+            continue; // Skip rest of loop for empty box
+        }
+        else
+        {
             g.drawText(selectedPluginNames[i], box.toNearestInt(), juce::Justification::centred);
             g.drawRoundedRectangle(box, 8.0f, 2.0f); // Draw Load Plugin Box
         }
-        
         // =================================== Handle Connection Logic ====================================
         if (i < selectedPluginNames.size())
         {
-            int shrinkage = 15;
-            if (hoveredPluginIndex == i)
+            if (hoveredPluginIndex == i) // Disappear effect when hovering over plugin box
             {
                 juce::Colour base = juce::Colours::grey;
                 juce::Colour hover = juce::Colours::black;
                 juce::Colour blended = base.interpolatedWith(hover, hoverAnim);
                 g.setColour(blended);
             }
-            else if (addHoveredIndex == i)
+            else if (addHoveredIndex == i) // Add button hover effect
             {
                 juce::Colour base = juce::Colours::grey;
                 juce::Colour hover = juce::Colours::white;
@@ -530,6 +695,7 @@ void PluginDropZone::paint(juce::Graphics& g)
             {
                 g.setColour(juce::Colours::grey);
             }
+        
             
             juce::Rectangle<float> add(
                 box.getX() - gap - btnW + shrinkage,
@@ -620,6 +786,60 @@ void PluginDropZone::paint(juce::Graphics& g)
         
             
     }
+    // compute box
+    float boxW = 120.0f;
+    float boxH = 10.0f;
+    float x = getWidth() / 2.0f - boxW / 2.0f; // center horizontally
+    float y = getHeight() - boxH; // bottom of component
+
+    juce::Rectangle<float> hintBox (x, y, boxW, boxH);
+
+    // background (semi-transparent)
+    g.setColour(juce::Colours::black.withAlpha(0.6f));
+    g.fillRoundedRectangle(hintBox, 4.0f);
+
+    // text inside box
+    g.setColour(juce::Colours::white);
+    g.setFont(12.0f); // float font size
+    // drawText takes an int rect so convert for crisp text:
+    if (addState == AddState::SlidingOut || addState == AddState::Shown)
+    {
+        g.drawText("route plugin to other plugin by clicking on their respective '+' buttons", hintBox.toNearestInt(), juce::Justification::centred, true);
+    }
+    
+    // =================================== Arrow Connection Logic ====================================
+    if (connection_array.size() >= 2 && addState == AddState::SlidingIn) // need at least 2 connections to draw an arrow
+    {
+        arrow_beg_ends.clear(); // clear out arrow positions
+        for (int i = 0; i < selectedPluginNames.size() - 1; i++)
+        {
+            // index plugin box id's
+            int idx_1 = connection_array[i];
+            int idx_2 = connection_array[i + 1];
+            
+            // get positions for arrow start and end
+            juce::Point<float> pos_1 (loadPluginBoxes[idx_1].getCentreX(), loadPluginBoxes[idx_1].getBottom());
+            juce::Point<float> pos_2 (loadPluginBoxes[idx_2].getCentreX(), loadPluginBoxes[idx_2].getY());
+            
+            // append arrow positions to array
+            arrow_beg_ends.add(pos_1);
+            arrow_beg_ends.add(pos_2);
+            
+        }
+    }
+
+    if (arrow_beg_ends.size() >= 2)
+    {
+        for (int i = 0; i < arrow_beg_ends.size(); i += 2)
+        {
+            juce::Point<float> from = arrow_beg_ends[i];
+            juce::Point<float> to = arrow_beg_ends[i + 1];
+            drawCurvedArrow(g, from, to, 35.0f, 5.0f, 5.0f, 5.0f, juce::Colours::yellow);
+        }
+    }
+
+    
+
 }
 
 void PluginDropZone::resized()
@@ -657,9 +877,37 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
         }
         if (addButtonRects[i].contains((float)event.x, (float)event.y))
         {
-            // This is the "+" button next to a loaded plugin
-            DBG("Add button clicked for plugin " << i);
-            return;
+            // connection_array.add(i); // add connection to array
+            if (addClicked == -1) // Only trigger if no other add button is currently clicked (prevents multiple rapid clicks)
+            {
+                addClicked = i; // Store which plugin's add button was clicked
+                triggerClickAnim = true; // Start click animation
+                startTimerHz(60); // Start timer for hover/slide animation
+                return;
+            }
+            else if (addClicked == i) // If the same button is clicked again, reset the state (toggle behavior)
+            {
+                triggerClickAnim = true; // Start click animation
+                startTimerHz(60); // Start timer for hover/slide animation
+                connection_array.removeLast(1); // remove last connection from array
+                return;
+            }
+            else if (addClicked != i) // If a different add button is clicked while one is already active, you route the connection
+{
+//                if (!connection_array.contains(i)) // prevent duplicate connections
+//                {
+//                    connection_array.add(i); // add second connection to array
+//                }
+                addState = AddState::SlidingIn;
+                triggerClickAnim = true; // Start click animation
+                startTimerHz(60); // Start timer for hover/slide animation
+                return;
+            }
+            
+            
+            
+
+
         }
     }
     // Check which plugin box was clicked
@@ -884,6 +1132,7 @@ void PluginDropZone::itemDropped(const juce::DragAndDropTarget::SourceDetails& /
     DBG("Plugin dropped!");
     repaint();
 }
+
 
 
 
