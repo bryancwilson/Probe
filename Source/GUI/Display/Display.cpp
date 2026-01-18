@@ -915,34 +915,60 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
     {
         if (loadPluginBoxes[i].contains((float)event.x, (float)event.y))
         {
-            if (i < selectedPluginNames.size())
+            if (i < selectedPluginNames.size()) // Plugin already loaded
             {
                 // Open plugin editor for loaded plugin
                 auto* instance = audioProcessor.pluginInstances[i];
-                if (instance != nullptr)
+                // 1. Create the editor
+                if (auto* ed = instance->createEditor())
                 {
-                    if (auto* ed = instance->createEditorIfNeeded())
+                    // 2. Ownership
+                    editor.reset(ed);
+
+                    // 3. Component Cast
+                    auto* pluginComp = static_cast<juce::Component*>(ed);
+
+                    // 4. Sizing (Standard robust sizing)
+                    int pluginWidth = pluginComp->getWidth();
+                    int pluginHeight = pluginComp->getHeight();
+                    if (pluginWidth <= 0 || pluginHeight <= 0)
                     {
-                        editor.reset(ed);
-                        ed->setWantsKeyboardFocus(false);
-                        ed->setInterceptsMouseClicks(true, false);
-                        addAndMakeVisible(editor.get());
-                        static juce::ComponentAnimator animator;
-                        auto pluginArea = hostEditor.getLocalBounds();
-                        ed->setBounds(pluginArea.withY(0).withHeight(1));
-                        animator.animateComponent(editor.get(), pluginArea, 1.0f, 300, true, 0.0f, 0.0f);
-                        
-                        int requiredHeight = pluginArea.getHeight();
-                        int requiredWidth = pluginArea.getWidth();
-                        auto hostEditorBounds = hostEditor.getBounds();
-                        
-                        hostEditor.setBounds(hostEditorBounds.withHeight(requiredHeight).withWidth(requiredWidth));
-                        hostEditor.extend_panel = true;
-                        hostEditor.togglePromptSidebar(hostEditor.extend_panel);
+                        pluginWidth = 400;
+                        pluginHeight = 300;
                     }
+                    // Enable Keyboard Focus
+                    // This allows you to type in the plugin (e.g., search bars, serial numbers)
+                    pluginComp->setWantsKeyboardFocus(true);
+
+                    // Click-to-Focus
+                    // Ensuring clicking the plugin GUI gives it focus (stealing it from the host)
+                    pluginComp->setMouseClickGrabsKeyboardFocus(true);
+
+                    // Mouse Interception
+                    // Changed to (true, true).
+                    // - 1st 'true': The plugin background CAN be clicked (needed to grab focus).
+                    // - 2nd 'true': The plugin knobs/buttons CAN be clicked.
+                    pluginComp->setInterceptsMouseClicks(true, true);
+
+                    // ---------------------------------------------------------
+
+                    // 6. Hierarchy
+                    addAndMakeVisible(pluginComp);
+
+                    // 7. Resize Host (Fit to Plugin)
+                    auto currentHostBounds = hostEditor.getBounds();
+                    hostEditor.setBounds(currentHostBounds.withWidth(pluginWidth)
+                                                          .withHeight(pluginHeight));
+
+                    // 8. Set Plugin Bounds
+                    pluginComp->setBounds(0, 0, pluginWidth, pluginHeight);
+
+                    // 9. UI State
+                    hostEditor.extend_panel = true;
+                    hostEditor.togglePromptSidebar(hostEditor.extend_panel);
                 }
             }
-            else
+            else // Load new plugin
             {
                 // Load new plugin if less than 3
                 if (selectedPluginNames.size() < 3)
@@ -1132,6 +1158,7 @@ void PluginDropZone::itemDropped(const juce::DragAndDropTarget::SourceDetails& /
     DBG("Plugin dropped!");
     repaint();
 }
+
 
 
 
