@@ -307,6 +307,12 @@ PluginDropZone::PluginDropZone(ChainBuilderAudioProcessor& proc, ChainBuilderAud
     : audioProcessor(proc), hostEditor(editorRef) {
     formatManager.addDefaultFormats(); // VST, AU, etc.
     startTimerHz(60); // repaint 60 times per second
+    // Title label setup
+    titleLabel.setText("Plugin Chain Builder", juce::dontSendNotification);
+    titleLabel.setFont(juce::Font(hostEditor.fontName, 16.0f, juce::Font::bold));
+    titleLabel.setJustificationType(juce::Justification::centred);
+    titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    addAndMakeVisible(titleLabel);
 }
 
 PluginDropZone::~PluginDropZone() {
@@ -402,7 +408,7 @@ void PluginDropZone::timerCallback()
     bool needsRepaint = false;
 
     // 1. Hover Animation Progress
-    float hoverTarget = (hoveredPluginIndex >= 0 || addHoveredIndex >= 0 || emptyPluginBoxHover) ? 1.0f : 0.0f;
+    float hoverTarget = (hoveredPluginIndex >= 0 || visualHoveredIndex >= 0 || bypassHoveredIndex >= 0 || emptyPluginBoxHover) ? 1.0f : 0.0f;
     if (std::abs(hoverAnim - hoverTarget) > 0.001f) {
         hoverAnim += (hoverTarget - hoverAnim) * ((hoverTarget > hoverAnim) ? 0.07f : 0.03f);
         needsRepaint = true;
@@ -485,9 +491,19 @@ void PluginDropZone::drawCurvedArrow (juce::Graphics& g,
 
 void PluginDropZone::paint(juce::Graphics& g)
 {
+    // ================================= Static Labels =====================================
+    // Title Label
+    juce::Label titleLabel;
+    titleLabel.setText("Plugin Chain Builder", juce::dontSendNotification);
+    titleLabel.setFont(juce::Font(20.0f, juce::Font::bold));
+    titleLabel.setJustificationType(juce::Justification::centred);
+    titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    titleLabel.setBounds(0, 10, getWidth(), 30);
+    addAndMakeVisible(titleLabel);
+    
     loadPluginBoxes.clear();
     xButtonRects.clear();
-    addButtonRects.clear();
+    visualButtonRects.clear();
     bypassButtonRects.clear();
     int maxPlugins = 3;
     int numBoxes = std::min(maxPlugins, (int)selectedPluginNames.size() + 1);
@@ -507,7 +523,7 @@ void PluginDropZone::paint(juce::Graphics& g)
     for (int i = 0; i < numBoxes; ++i)
     {
         // =================================== Sliding Animation (Load Plugin Box Logic) ===========================================
-        float boxX = (getWidth() / 2.0f) - 100 / 2.0f;
+        float boxX = (getWidth() / 2.0f) - PLUGIN_BOX_WIDTH / 2.0f;
         float boxWidth = PLUGIN_BOX_WIDTH;
         float shrinkage = ORIGINAL_SHRINKAGE;
         
@@ -525,11 +541,19 @@ void PluginDropZone::paint(juce::Graphics& g)
                     break;
                 case SlideState::AnimatingAway:
                     boxX -= 300.0f * slideAnim;
-                    if (slideAnim == 1.f)
+                    
+                    if (editor != nullptr)
                     {
-                        // Remove plugin at index i
-                        selectedPluginNames.remove(i);
-                        audioProcessor.pluginInstances.remove(i);
+                        editor.reset(); // Safely destroys the window and frees memory
+                    }
+
+                    selectedPluginNames.remove(i);
+                    audioProcessor.pluginInstances.remove(i);
+                    // audioProcessor.pluginInstances[i]->releaseResources(); // Good practice to let it clean up first
+                    // audioProcessor.pluginInstances[i]->reset(); // Destroys the plugin instance
+                    
+                    if (slideAnim >= .9f)
+                    {
                         slideState = SlideState::Hidden;
                         repaint();
         
@@ -538,90 +562,6 @@ void PluginDropZone::paint(juce::Graphics& g)
                     break;
             }
             
-        }
-        
-        // ================================== Click Button Animation (Load Plugin Box Logic and "+" Box) ===========================================
-        // Common constants for all cases
-        const float fullWidth = PLUGIN_BOX_WIDTH;
-        const float targetWidth = PLUGIN_BOX_WIDTH - PLUGIN_BOX_X_DISP;
-        const float originalBoxX = (getWidth() / 2.0f) - (100.0f / 2.0f);
-        const float origShrinkage = ORIGINAL_SHRINKAGE; // how much the box shrinks during click animation
-        const float targetShrinkage = TARGET_SHRINKAGE;
-
-        switch (addState)
-        {
-            case AddState::Default:
-                if (triggerClickAnim)
-                {
-                    addState = AddState::SlidingOut;
-                    init_var_for_click_anim = true;
-                }
-                break;
-
-            case AddState::SlidingOut:
-                if (addClicked != i && i < selectedPluginNames.size())
-                {
-                    // Use the sigmoid to map from Start -> End
-                    boxWidth  = fullWidth + (targetWidth - fullWidth) * visualClickAnim;
-                    boxX      = originalBoxX + (PLUGIN_BOX_X_DISP * visualClickAnim);
-                    shrinkage = origShrinkage + (targetShrinkage - origShrinkage) * visualClickAnim;
-                    
-                    juce::Colour base = juce::Colours::white;
-                    juce::Colour hover = juce::Colours::grey;
-                    juce::Colour blended = base.interpolatedWith(hover, clickAnim);
-                    g.setColour(blended);
-                    DBG("Blended: " + blended.toString());
-                    
-                    if (clickAnim >= .9f)
-                    {
-                        clickAnim = 1.0f;
-                        triggerClickAnim = false;
-                        addState = AddState::Shown;
-                    }
-                }
-                break;
-
-            case AddState::Shown:
-                if (triggerClickAnim)
-                {
-                    addState = AddState::SlidingIn;
-                }
-                
-                // While shown, keep the values locked at the "End" state
-                if (addClicked != i && i < selectedPluginNames.size())
-                {
-                    boxWidth  = targetWidth;
-                    boxX      = originalBoxX + PLUGIN_BOX_X_DISP;
-                    shrinkage = targetShrinkage;
-                    g.setColour(juce::Colours::grey);
-                }
-
-                break;
-
-            case AddState::SlidingIn:
-
-                if (addClicked != i && i < selectedPluginNames.size())
-                {
-                    // The same math applies! As clickAnim goes from 1.0 down to 0.0,
-                    // the values will naturally slide back to their original positions.
-                    boxWidth  = fullWidth + (targetWidth - fullWidth) * visualClickAnimInv;
-                    boxX      = originalBoxX + (PLUGIN_BOX_X_DISP * visualClickAnimInv);
-                    shrinkage = origShrinkage + (targetShrinkage - origShrinkage) * visualClickAnimInv;
-                    
-                    juce::Colour base = juce::Colours::grey;
-                    juce::Colour hover = juce::Colours::white;
-                    juce::Colour blended = base.interpolatedWith(hover, visualClickAnim);
-                    g.setColour(blended);
-
-                    if (clickAnim >= .9f)
-                    {
-                        clickAnim = 1.0f;
-                        triggerClickAnim = false;
-                        addState = AddState::Default;
-                        addClicked = -1;
-                    }
-                }
-                break;
         }
 
         // ============================== Handle Hover Logic (Load Plugin Box) =======================================
@@ -642,14 +582,13 @@ void PluginDropZone::paint(juce::Graphics& g)
             }
             
         }
-        else{
+        else{ // This is a filled box
             if (i == hoveredPluginIndex && hoverAnim > 0.01f)
             {
                 juce::Colour base = juce::Colours::white;
                 juce::Colour hover = juce::Colours::orange;
                 juce::Colour blended = base.interpolatedWith(hover, hoverAnim * 0.5f);
                 g.setColour(blended);
-                // DBG("Blended: " + blended.toString());
             }
             else
             {
@@ -674,41 +613,103 @@ void PluginDropZone::paint(juce::Graphics& g)
             g.drawText(selectedPluginNames[i], box.toNearestInt(), juce::Justification::centred);
             g.drawRoundedRectangle(box, 8.0f, 2.0f); // Draw Load Plugin Box
         }
-        // =================================== Handle Connection Logic ====================================
+        // =================================== Side Option Hover Logic ====================================
         if (i < selectedPluginNames.size())
         {
+            juce::Rectangle<float> visualize(
+                box.getX() - gap - btnW + shrinkage,
+                box.getY(),
+                btnW - shrinkage,
+                btnH
+            );
+   
+            juce::Rectangle<float> bypass(
+                box.getX() - gap - btnW + shrinkage - gap - btnW + shrinkage,
+                box.getY(),
+                btnW - shrinkage,
+                btnH
+            );
+            
             if (hoveredPluginIndex == i) // Disappear effect when hovering over plugin box
             {
                 juce::Colour base = juce::Colours::grey;
                 juce::Colour hover = juce::Colours::black;
                 juce::Colour blended = base.interpolatedWith(hover, hoverAnim);
                 g.setColour(blended);
-            }
-            else if (addHoveredIndex == i) // Add button hover effect
-            {
-                juce::Colour base = juce::Colours::grey;
-                juce::Colour hover = juce::Colours::white;
-                juce::Colour blended = base.interpolatedWith(hover, hoverAnim);
-                g.setColour(blended);
+                
+                g.setFont(20.0f);
+                g.drawText("v", visualize, juce::Justification::centred);
+                g.drawRoundedRectangle(visualize, 8.0f, 2.0f); // may look good without
+                
+                g.setFont(20.0f);
+                g.drawText("b", bypass, juce::Justification::centred);
+                g.drawRoundedRectangle(bypass, 8.0f, 2.0f); // may look good without
             }
             else
             {
-                g.setColour(juce::Colours::grey);
+                if (visualClickedIndex == i)
+                {
+                    juce::Colour clicked = juce::Colours::green;
+                    g.setColour(clicked);
+                    g.setFont(20.0f);
+                    g.drawText("v", visualize, juce::Justification::centred);
+                    g.drawRoundedRectangle(visualize, 8.0f, 2.0f); // may look good without
+                }
+                else if (visualHoveredIndex == i) // Add button hover effect
+                {
+                    juce::Colour base = juce::Colours::grey;
+                    juce::Colour hover = juce::Colours::white;
+                    juce::Colour blended = base.interpolatedWith(hover, hoverAnim);
+                    
+                    g.setColour(blended);
+                    g.setFont(20.0f);
+                    g.drawText("v", visualize, juce::Justification::centred);
+                    g.drawRoundedRectangle(visualize, 8.0f, 2.0f); // may look good without
+                }
+                else
+                {
+                    g.setColour(juce::Colours::grey);
+                    
+                    g.setFont(20.0f);
+                    g.drawText("v", visualize, juce::Justification::centred);
+                    g.drawRoundedRectangle(visualize, 8.0f, 2.0f); // may look good without
+                    
+                }
+                
+                if (bypassClickedIndex == i)
+                {
+                    juce::Colour clicked = juce::Colours::yellow;
+                    g.setColour(clicked);
+                    g.setFont(20.0f);
+                    g.drawText("b", bypass, juce::Justification::centred);
+                    g.drawRoundedRectangle(bypass, 8.0f, 2.0f); // may look good without
+                }
+                else if (bypassHoveredIndex == i) // Add button hover effect
+                {
+                    juce::Colour base = juce::Colours::grey;
+                    juce::Colour hover = juce::Colours::white;
+                    juce::Colour blended = base.interpolatedWith(hover, hoverAnim);
+                    g.setColour(blended);
+                    g.setFont(20.0f);
+                    g.drawText("b", bypass, juce::Justification::centred);
+                    g.drawRoundedRectangle(bypass, 8.0f, 2.0f); // may look good without
+                }
+                else
+                {
+                    g.setColour(juce::Colours::grey);
+                    
+                    g.setFont(20.0f);
+                    g.drawText("b", bypass, juce::Justification::centred);
+                    g.drawRoundedRectangle(bypass, 8.0f, 2.0f); // may look good without
+                }
             }
+            
+
         
+
             
-            juce::Rectangle<float> add(
-                box.getX() - gap - btnW + shrinkage,
-                box.getY(),
-                btnW - shrinkage,
-                btnH
-            );
-            
-            g.setFont(24.0f);
-            g.drawText("+", add, juce::Justification::centred);
-            g.drawRoundedRectangle(add, 8.0f, 2.0f); // may look good without
-            
-            addButtonRects.add(add); // add buttons array
+            bypassButtonRects.add(bypass); // bypass buttons array
+            visualButtonRects.add(visualize); // add buttons array
 
         }
         
@@ -717,17 +718,11 @@ void PluginDropZone::paint(juce::Graphics& g)
         {
             
             juce::Rectangle<float> close(
-                box.getRight() + gap + slideOffset,
-                box.getY(),
-                btnW,
-                btnH
-            );
-            juce::Rectangle<float> bypass(
-                close.getRight() + gap + slideOffset,
-                close.getY(),
-                btnW,
-                btnH
-            );
+                                         box.getRight() + gap + slideOffset,
+                                         box.getY(),
+                                         btnW,
+                                         btnH
+                                         );
             
             switch (slideState) {
                 case SlideState::AnimatingIn:
@@ -737,7 +732,7 @@ void PluginDropZone::paint(juce::Graphics& g)
                     slideOffset -= 1.0f * slideAnim;
                     break;
                 case SlideState::AnimatingAway:
-                    if (bypass.getRight() < 1.0f)
+                    if (close.getRight() < 1.0f)
                     {
                         // Remove plugin at index i
                         selectedPluginNames.remove(i);
@@ -752,10 +747,9 @@ void PluginDropZone::paint(juce::Graphics& g)
                 default:
                     break;
             }
-
+            
             // Store for hit testing
             xButtonRects.add(close);
-            bypassButtonRects.add(bypass);
             // Draw close button
             g.setColour(juce::Colours::white.withAlpha(0.12f));
             g.fillRoundedRectangle(close, 8.0f);
@@ -763,25 +757,13 @@ void PluginDropZone::paint(juce::Graphics& g)
             g.setFont(24.0f);
             g.drawText("x", close, juce::Justification::centred);
             g.drawRoundedRectangle(close, 8.0f, 2.0f);
-            // Draw bypass button
-            g.setColour(juce::Colours::white.withAlpha(0.12f));
-            g.fillRoundedRectangle(bypass, 8.0f);
-            g.setColour(juce::Colours::blue);
-            g.setFont(24.0f);
-            g.drawText("b", bypass, juce::Justification::centred);
-            g.drawRoundedRectangle(bypass, 8.0f, 2.0f);
-
-            // --- Conditional: Check if right side of bypass meets left side of plugin box ---
-            if (std::abs(bypass.getRight() - box.getX()) < 1.0f) // Allow for float rounding
-            {
-                // They are touching (or nearly touching)
-                DBG("Bypass right meets plugin left");
-                // You can add any logic here that should happen when they meet
-            }
-        } else {
+            
+            
+        }
+        else
+        {
             // Keep arrays in sync
             xButtonRects.add(juce::Rectangle<float>());
-            bypassButtonRects.add(juce::Rectangle<float>());
         }
         
             
@@ -844,7 +826,7 @@ void PluginDropZone::paint(juce::Graphics& g)
 
 void PluginDropZone::resized()
 {
-
+    titleLabel.setBounds(0, 10, getWidth(), 30);
 }
 
 
@@ -862,73 +844,70 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
     {
         if (xButtonRects[i].contains((float)event.x, (float)event.y))
         {
-            slideState = SlideState::AnimatingAway;
+            slideState = SlideState::AnimatingAway; // Start the "yeet" animation
             slideAnim = 0.0f; // Reset Slide Animation
+            
+            if (hostEditor.SlideOverDropZone_flag)
+            {
+                hostEditor.SlideOverDropZone(); // Trigger host editor slide
+            }
+ 
+            hostEditor.extend_panel = false;
+            hostEditor.togglePromptSidebar(hostEditor.extend_panel); // Ensure sidebar is extended when plugin is removed
+            
             startTimerHz(60); // Start timer for hover/slide animation
             return;
         }
         if (bypassButtonRects[i].contains((float)event.x, (float)event.y))
         {
             DBG("Bypass button clicked for plugin " << i);
-            hostEditor.SlideOverDropZone();
             
-            // Optionally: set a bypass state array and repaint
+            bypassClickedIndex = (bypassClickedIndex == -1) ? i : -1;
+          
             return;
         }
-        if (addButtonRects[i].contains((float)event.x, (float)event.y))
+        if (visualButtonRects[i].contains((float)event.x, (float)event.y))
         {
-            // connection_array.add(i); // add connection to array
-            if (addClicked == -1) // Only trigger if no other add button is currently clicked (prevents multiple rapid clicks)
+            DBG("Visualize button clicked for plugin " << i);
+            
+            if (visualClickedIndex == -1)
             {
-                addClicked = i; // Store which plugin's add button was clicked
-                triggerClickAnim = true; // Start click animation
-                startTimerHz(60); // Start timer for hover/slide animation
-                return;
+                visualClickedIndex = i;
             }
-            else if (addClicked == i) // If the same button is clicked again, reset the state (toggle behavior)
-            {
-                triggerClickAnim = true; // Start click animation
-                startTimerHz(60); // Start timer for hover/slide animation
-                connection_array.removeLast(1); // remove last connection from array
-                return;
+            else{
+                visualClickedIndex = -1;
+                editor.reset();
+                
+                hostEditor.SlideOverDropZone(); // Trigger host editor slide
+                
+                hostEditor.extend_panel = false;
+                hostEditor.togglePromptSidebar(hostEditor.extend_panel);
+                
+                
             }
-            else if (addClicked != i) // If a different add button is clicked while one is already active, you route the connection
-{
-//                if (!connection_array.contains(i)) // prevent duplicate connections
-//                {
-//                    connection_array.add(i); // add second connection to array
-//                }
-                addState = AddState::SlidingIn;
-                triggerClickAnim = true; // Start click animation
-                startTimerHz(60); // Start timer for hover/slide animation
-                return;
-            }
-            
-            
-            
-
 
         }
     }
     // Check which plugin box was clicked
     for (int i = 0; i < loadPluginBoxes.size(); ++i)
     {
-        if (loadPluginBoxes[i].contains((float)event.x, (float)event.y))
+        if (visualClickedIndex == i && hostEditor.extend_panel == false)
+        
         {
             if (i < selectedPluginNames.size()) // Plugin already loaded
             {
                 // Open plugin editor for loaded plugin
                 auto* instance = audioProcessor.pluginInstances[i];
-                // 1. Create the editor
+                // Create the editor
                 if (auto* ed = instance->createEditor())
                 {
-                    // 2. Ownership
+                    // Ownership
                     editor.reset(ed);
-
-                    // 3. Component Cast
+                    
+                    // Component Cast
                     auto* pluginComp = static_cast<juce::Component*>(ed);
-
-                    // 4. Sizing (Standard robust sizing)
+                    
+                    // Sizing (Standard robust sizing)
                     int pluginWidth = pluginComp->getWidth();
                     int pluginHeight = pluginComp->getHeight();
                     if (pluginWidth <= 0 || pluginHeight <= 0)
@@ -939,92 +918,99 @@ void PluginDropZone::mouseDown(const juce::MouseEvent& event)
                     // Enable Keyboard Focus
                     // This allows you to type in the plugin (e.g., search bars, serial numbers)
                     pluginComp->setWantsKeyboardFocus(true);
-
+                    
                     // Click-to-Focus
                     // Ensuring clicking the plugin GUI gives it focus (stealing it from the host)
                     pluginComp->setMouseClickGrabsKeyboardFocus(true);
-
+                    
                     // Mouse Interception
                     // Changed to (true, true).
                     // - 1st 'true': The plugin background CAN be clicked (needed to grab focus).
                     // - 2nd 'true': The plugin knobs/buttons CAN be clicked.
                     pluginComp->setInterceptsMouseClicks(true, true);
-
+                    
                     // ---------------------------------------------------------
-
-                    // 6. Hierarchy
+                    
+                    // Hierarchy
                     addAndMakeVisible(pluginComp);
-
-                    // 7. Resize Host (Fit to Plugin)
+                    
+                    // Resize Host (Fit to Plugin)
                     auto currentHostBounds = hostEditor.getBounds();
                     hostEditor.setBounds(currentHostBounds.withWidth(pluginWidth)
-                                                          .withHeight(pluginHeight));
-
-                    // 8. Set Plugin Bounds
-                    pluginComp->setBounds(0, 0, pluginWidth, pluginHeight);
-
-                    // 9. UI State
+                                         .withHeight(pluginHeight));
+                    
+                    // Set Plugin Bounds
+                    pluginComp->setBounds(-hostEditor.getWidth(), 0, pluginWidth, pluginHeight);
+                    
+                    // UI State
+                    hostEditor.setSize(hostEditor.getWidth() + getWidth() + 10, hostEditor.getHeight());
+                    hostEditor.trav_length = pluginWidth;
+                    hostEditor.SlideOverDropZone();
+                    
                     hostEditor.extend_panel = true;
                     hostEditor.togglePromptSidebar(hostEditor.extend_panel);
+                    
+                    
                 }
             }
-            else // Load new plugin
+        }
+        else if (loadPluginBoxes[i].contains((float)event.x, (float)event.y))
+        {
+            // Load new plugin if less than 3
+            if (selectedPluginNames.size() < 3)
             {
-                // Load new plugin if less than 3
-                if (selectedPluginNames.size() < 3)
-                {
-                    juce::FileSearchPath searchPaths;
-                    #if JUCE_WINDOWS
-                        searchPaths.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
-                        searchPaths.add(juce::File("C:\\Program Files\\Steinberg\\VST3"));
-                    #elif JUCE_MAC
-                        searchPaths.add(juce::File("/Library/Audio/Plug-Ins/VST3"));
-                        searchPaths.add(juce::File("~/Library/Audio/Plug-Ins/VST3"));
-                    #elif JUCE_LINUX
-                        searchPaths.add(juce::File("/usr/lib/vst3"));
-                        searchPaths.add(juce::File("/usr/local/lib/vst3"));
-                    #endif
-                    juce::File deadMansPedal = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("pluginScanState.tmp");
-                    juce::PluginDirectoryScanner scanner(pluginList, pluginFormat, searchPaths, true, deadMansPedal, false);
-                    juce::String pluginNames = "";
-                    bool finished = false;
-                    while (!finished)
-                        finished = !scanner.scanNextFile(true, pluginNames);
-                    juce::PopupMenu menu;
-                    auto pluginTypes = pluginList.getTypes();
-                    for (int j = 0; j < pluginTypes.size(); ++j)
-                        menu.addItem(j + 1, pluginTypes[j].name);
-                    menu.showMenuAsync(juce::PopupMenu::Options(),
-                        [this, pluginTypes, i](int result)
+                juce::FileSearchPath searchPaths;
+                #if JUCE_WINDOWS
+                    searchPaths.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
+                    searchPaths.add(juce::File("C:\\Program Files\\Steinberg\\VST3"));
+                #elif JUCE_MAC
+                    searchPaths.add(juce::File("/Library/Audio/Plug-Ins/VST3"));
+                    searchPaths.add(juce::File("~/Library/Audio/Plug-Ins/VST3"));
+                #elif JUCE_LINUX
+                    searchPaths.add(juce::File("/usr/lib/vst3"));
+                    searchPaths.add(juce::File("/usr/local/lib/vst3"));
+                #endif
+                juce::File deadMansPedal = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("pluginScanState.tmp");
+                juce::PluginDirectoryScanner scanner(pluginList, pluginFormat, searchPaths, true, deadMansPedal, false);
+                juce::String pluginNames = "";
+                bool finished = false;
+                while (!finished)
+                    finished = !scanner.scanNextFile(true, pluginNames);
+                juce::PopupMenu menu;
+                auto pluginTypes = pluginList.getTypes();
+                for (int j = 0; j < pluginTypes.size(); ++j)
+                    menu.addItem(j + 1, pluginTypes[j].name);
+                menu.showMenuAsync(juce::PopupMenu::Options(),
+                    [this, pluginTypes, i](int result)
+                    {
+                        if (result > 0)
                         {
-                            if (result > 0)
+                            auto selectedPlugin = pluginTypes[result - 1];
+                            juce::String errorMessage;
+                            auto instance = formatManager.createPluginInstance(
+                                selectedPlugin,
+                                audioProcessor.getSampleRate(),
+                                audioProcessor.getBlockSize(),
+                                errorMessage
+                            );
+                            if (instance == nullptr)
                             {
-                                auto selectedPlugin = pluginTypes[result - 1];
-                                juce::String errorMessage;
-                                auto instance = formatManager.createPluginInstance(
-                                    selectedPlugin,
-                                    audioProcessor.getSampleRate(),
-                                    audioProcessor.getBlockSize(),
-                                    errorMessage
-                                );
-                                if (instance == nullptr)
-                                {
-                                    DBG("Failed to load plugin: " << errorMessage);
-                                }
-                                else
-                                {
-                                    instance->setPlayConfigDetails(2, 2, audioProcessor.getSampleRate(), audioProcessor.getBlockSize());
-                                    instance->prepareToPlay(audioProcessor.getSampleRate(), audioProcessor.getBlockSize());
-                                    audioProcessor.pluginInstances.add(instance.release());
-                                    selectedPluginNames.add(selectedPlugin.name);
-                                    repaint();
-                                }
+                                DBG("Failed to load plugin: " << errorMessage);
                             }
-                        });
-                }
+                            else
+                            {
+                                instance->setPlayConfigDetails(2, 2, audioProcessor.getSampleRate(), audioProcessor.getBlockSize());
+                                instance->prepareToPlay(audioProcessor.getSampleRate(), audioProcessor.getBlockSize());
+                                audioProcessor.pluginInstances.add(instance.release());
+                                selectedPluginNames.add(selectedPlugin.name);
+                                repaint();
+                            }
+                        }
+                    });
             }
             break;
         }
+
     }
 }
 
@@ -1032,19 +1018,29 @@ void PluginDropZone::mouseMove(const juce::MouseEvent& event)
 {
 
     // =========================== Add Buttin Hover Logic ====================================
-    int addHovered = addHoveredIndex;
+    int visualHovered = visualHoveredIndex;
     
-    for (int i = 0; i < addButtonRects.size(); ++i)
+    for (int i = 0; i < visualButtonRects.size(); ++i)
     {
-        if (addButtonRects[i].contains((float)event.x, (float)event.y))
+        if (visualButtonRects[i].contains((float)event.x, (float)event.y))
         {
-            addHovered = i;
+            visualHovered = i;
             break; // Stop searching after the first match
         }
-        addHovered = -1;
+        visualHovered = -1;
     }
-
+    // =========================== Bypass Buttin Hover Logic ====================================
+    int bypassHovered = bypassHoveredIndex;
     
+    for (int i = 0; i < bypassButtonRects.size(); ++i)
+    {
+        if (bypassButtonRects[i].contains((float)event.x, (float)event.y))
+        {
+            bypassHovered = i;
+            break; // Stop searching after the first match
+        }
+        bypassHovered = -1;
+    }
     // ========================== Load Plugin Box Hover Logic ==================================
     int hovered = hoveredPluginIndex;
     if (hovered != -1 and ~in_vertical_bounds)
@@ -1087,15 +1083,19 @@ void PluginDropZone::mouseMove(const juce::MouseEvent& event)
         hovered = -1; // No box is hovered
     }
     // If the hovered box has changed, update the state and start the animation timer
-    if (hovered != hoveredPluginIndex || emptyPluginBoxHover || addHovered != addHoveredIndex)
+    if (hovered != hoveredPluginIndex || emptyPluginBoxHover || visualHovered != visualHoveredIndex || bypassHovered != bypassHoveredIndex)
     {
         if (hovered != hoveredPluginIndex)
         {
             hoveredPluginIndex = hovered;
         }
-        else if (addHovered != addHoveredIndex)
+        else if (visualHovered != visualHoveredIndex)
         {
-            addHoveredIndex = addHovered;
+            visualHoveredIndex = visualHovered;
+        }
+        else if (bypassHovered != bypassHoveredIndex)
+        {
+            bypassHoveredIndex = bypassHovered;
         }
         startTimerHz(60); // Start timer for hover/slide animation
     }
@@ -1158,11 +1158,4 @@ void PluginDropZone::itemDropped(const juce::DragAndDropTarget::SourceDetails& /
     DBG("Plugin dropped!");
     repaint();
 }
-
-
-
-
-
-
-
 

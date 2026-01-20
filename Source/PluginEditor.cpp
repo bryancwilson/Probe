@@ -27,7 +27,7 @@ ChainBuilderAudioProcessorEditor::~ChainBuilderAudioProcessorEditor()
 //==============================================================================
 void ChainBuilderAudioProcessorEditor::SlideOverDropZone()
 {
-    SlideOverDropZone_flag = true;
+    SlideOverDropZone_flag = !SlideOverDropZone_flag;
     startTimerHz(60);
 }
 // This ensures any click in the editor window grabs keyboard focus
@@ -56,21 +56,19 @@ void ChainBuilderAudioProcessorEditor::paint (juce::Graphics& g)
     // Position and show your drop zone
     if (!SlideOverDropZone_flag)
     {
-        dropZone->setBounds (0, 0, getWidth() * 0.25f, getHeight() - 80);
+        dropZone->setBounds(0, 0, getWidth() * 0.30f, getHeight());
+        
+        // make white right vertical boundary line on dropzone
+        g.setColour(juce::Colours::grey);
+        float lineX = dropZone->getRight();
+        g.drawLine(lineX, getHeight() * .1f, lineX, getHeight() * .9f, 2.0f);
     }
     else
     {
-        float dropZoneWidth = getWidth() * 0.25f;
-        float trav_length = getWidth() * 0.50f;
         int dropZoneX = static_cast<int>(trav_length * dropZoneSlideAnim);
-        dropZone->setBounds(dropZoneX, 0, dropZoneWidth, getHeight() - 80);
+        dropZone->setBounds(dropZoneX, 0, getWidth() * 0.25f, getHeight());
     }
-    
     addAndMakeVisible (dropZone);
-    // make white right vertical boundary line on dropzone
-    g.setColour(juce::Colours::white);
-    float lineX = dropZone->getRight();
-    g.drawLine(lineX, 0.0f, lineX, getHeight(), 2.0f);
     
     resized();
 }
@@ -83,7 +81,7 @@ void ChainBuilderAudioProcessorEditor::togglePromptSidebar(bool shouldShow)
     sidebarVisible = shouldShow;
 
     int currentWidth = getWidth();
-    int targetWidth = sidebarVisible ? currentWidth + sidebarWidth : currentWidth - sidebarWidth;
+    int targetWidth = sidebarVisible ? currentWidth + sidebarWidth: currentWidth - sidebarWidth;
 
     // Animate the window resize (optional)
     static juce::ComponentAnimator animator;
@@ -121,7 +119,7 @@ void ChainBuilderAudioProcessorEditor::resized()
         Translate.setText("Translate", juce::dontSendNotification);
         Translate.setColour(juce::Label::textColourId, juce::Colours::white);
         Translate.setJustificationType(juce::Justification::centred);
-        Translate.setBounds(sidebarArea.getX(), currentY, sidebarArea.getWidth(), labelHeight);
+        Translate.setBounds(sidebarArea.getX() + 50, currentY, sidebarArea.getWidth() - 50, labelHeight);
         addAndMakeVisible(Translate);
         currentY += labelHeight + sectionSpacing;
 
@@ -147,9 +145,9 @@ void ChainBuilderAudioProcessorEditor::resized()
 
         // --- Text Box ---
         textBox.setBounds(
-            sidebarArea.getX(),
+            sidebarArea.getX() + 50,
             currentY,
-            sidebarArea.getWidth(),
+            sidebarArea.getWidth() - 50,
             textBoxHeight
         );
 

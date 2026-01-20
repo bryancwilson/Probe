@@ -80,6 +80,7 @@ private:
 
     std::unique_ptr<juce::AudioProcessorEditor> editor; // hosted editor pointer
 
+    
     // ====================================== UI COMPONENTS ======================================
     juce::TextEditor promptBox;
     juce::TextButton sendButton;
@@ -91,11 +92,14 @@ private:
     // Hit Test Rects
     juce::Array<juce::Rectangle<float>> xButtonRects;
     juce::Array<juce::Rectangle<float>> bypassButtonRects;
-    juce::Array<juce::Rectangle<float>> addButtonRects;
+    juce::Array<juce::Rectangle<float>> visualButtonRects;
 
     int hoveredPluginIndex = -1;
     int previouslyHoveredPluginIndex = -1;
-    int addHoveredIndex = -1;
+    int visualHoveredIndex = -1;
+    int bypassHoveredIndex = -1;
+    int visualClickedIndex = -1;
+    int bypassClickedIndex = -1;
 
     // ====================================== ANIMATION VALUES ======================================
     juce::AudioBuffer<float>* hostedPluginBuffer = nullptr;
@@ -106,8 +110,9 @@ private:
     float clickAnimInv = 1.0f;
     float visualClickAnim = 0.0f;
     float visualClickAnimInv = 0.0f;
-    bool triggerClickAnim = false;
     float slideAnim = 0.0f;
+    
+    bool triggerClickAnim = false;
 
     // Arrow Connection Variables
     juce::Array<juce::Point<float>> arrow_beg_ends;
@@ -124,6 +129,8 @@ private:
                                  juce::Colour colour);
     void updateSlideAnimation(bool& needsRepaint);
     void handlePluginRemoval();
+
+    juce::Label titleLabel;
 };
 
 // ===============================================================================================================

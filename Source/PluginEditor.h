@@ -122,6 +122,9 @@ public:
     float dropZoneSlideAnim = 0.0f; // 0.0 = hidden, 1.0 = fully shown
     void SlideOverDropZone();
     bool SlideOverDropZone_flag = false;
+    
+    // Dropzone Width
+    float trav_length = 0.0f;
 
 private:
     void timerCallback() override;
